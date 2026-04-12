@@ -185,7 +185,7 @@ body { animation: crt-flicker 4s infinite; }
 /* ─── State visualizer ────────────────────────────────────────── */
 .state-row {
   display: flex; gap: 0.5rem; align-items: center;
-  font-family: var(--font-mono); font-size: 0.7rem;
+  font-family: var(--font-mono); font-size: 0.75rem;
 }
 .state-label {
   min-width: 2rem;
@@ -227,7 +227,7 @@ body { animation: crt-flicker 4s infinite; }
   background: var(--bg-secondary);
   color: var(--text-secondary);
   text-transform: uppercase;
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   letter-spacing: 0.05em;
 }
 .cmp-table td { color: var(--text-primary); }
@@ -403,10 +403,10 @@ body { animation: crt-flicker 4s infinite; }
   }
   .panel { padding: 0.75rem; }
   .panel-header { font-size: 0.8rem; flex-wrap: wrap; }
-  .hex-output { font-size: 0.7rem; max-height: 6rem; }
+  .hex-output { font-size: 0.75rem; max-height: 6rem; }
   .cmp-table { font-size: 0.75rem; display: block; overflow-x: auto; }
   .cmp-table th, .cmp-table td { padding: 0.3rem 0.4rem; }
-  .flow-node { padding: 0.4rem 0.6rem; font-size: 0.65rem; }
+  .flow-node { padding: 0.4rem 0.6rem; font-size: 0.75rem; }
   .controls-row { flex-direction: column; }
   .state-row { flex-direction: column; align-items: flex-start; }
   .state-value { width: 100%; }
