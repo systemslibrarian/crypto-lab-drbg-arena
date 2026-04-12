@@ -8,7 +8,11 @@ export function toHex(bytes: Uint8Array): string {
 }
 
 export function fromHex(hex: string): Uint8Array {
-  const clean = hex.replace(/\s+/g, '');
+  let clean = hex.replace(/\s+/g, '');
+  // Pad odd-length hex strings with a leading zero
+  if (clean.length % 2 !== 0) {
+    clean = '0' + clean;
+  }
   const bytes = new Uint8Array(clean.length / 2);
   for (let i = 0; i < bytes.length; i++) {
     bytes[i] = parseInt(clean.substring(i * 2, i * 2 + 2), 16);
@@ -77,8 +81,10 @@ export function addBytes(a: Uint8Array, b: Uint8Array): Uint8Array {
   const result = new Uint8Array(len);
   let carry = 0;
   for (let i = len - 1; i >= 0; i--) {
-    const ai = i < a.length ? a[i + (len - a.length)] ?? 0 : 0;
-    const bi = i < b.length ? b[i + (len - b.length)] ?? 0 : 0;
+    const aIdx = i - (len - a.length);
+    const bIdx = i - (len - b.length);
+    const ai = aIdx >= 0 ? a[aIdx]! : 0;
+    const bi = bIdx >= 0 ? b[bIdx]! : 0;
     const sum = ai + bi + carry;
     result[i] = sum & 0xff;
     carry = sum >> 8;

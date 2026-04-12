@@ -60,7 +60,7 @@ export function buildExhibit4(announce: (msg: string) => void): HTMLElement {
           <div class="state-row">
             <span class="state-label">C:</span>
             <span class="state-value" id="hash-state-c"></span>
-            <span style="font-size:0.65rem;color:var(--text-muted);margin-left:0.5rem">(constant between reseeds)</span>
+            <span style="font-size:0.75rem;color:var(--text-muted);margin-left:0.5rem">(constant between reseeds)</span>
           </div>
         </div>
       </div>
