@@ -5,6 +5,7 @@
 
 import './style.css';
 import { buildExhibit1 } from './ui/exhibit1';
+import { buildConformancePanel } from './ui/conformance';
 import { buildExhibit2 } from './ui/exhibit2';
 import { buildExhibit3 } from './ui/exhibit3';
 import { buildExhibit4 } from './ui/exhibit4';
@@ -33,17 +34,23 @@ function initUI(): void {
 
   // ─── Header ─────────────────────────────────────────────────
   const header = document.createElement('header');
-  header.style.cssText = 'position:relative;display:flex;align-items:center;justify-content:space-between;padding:1rem 1.5rem;border-bottom:1px solid var(--border-color);flex-wrap:wrap;gap:0.5rem';
+  header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:1rem 1.5rem;border-bottom:1px solid var(--border-color);flex-wrap:wrap;gap:0.5rem 1rem';
+
+  // Title + subtitle as one left-hand group so the toggle (right) never overlaps them.
+  const titleGroup = document.createElement('div');
+  titleGroup.style.cssText = 'display:flex;align-items:baseline;gap:0.75rem;flex-wrap:wrap;min-width:0';
 
   const h1 = document.createElement('h1');
   h1.style.cssText = 'font-family:var(--font-mono);font-size:1.1rem;letter-spacing:0.15em;color:var(--green-clean);margin:0';
   h1.textContent = 'DRBG ARENA';
-  header.appendChild(h1);
+  titleGroup.appendChild(h1);
 
   const subtitle = document.createElement('span');
   subtitle.style.cssText = 'font-size:0.75rem;color:var(--text-secondary);font-family:var(--font-sans)';
   subtitle.textContent = 'NIST SP 800-90A';
-  header.appendChild(subtitle);
+  titleGroup.appendChild(subtitle);
+
+  header.appendChild(titleGroup);
 
   // Theme toggle
   const themeToggle = document.createElement('button');
@@ -85,8 +92,10 @@ function initUI(): void {
   `;
   main.appendChild(intro);
 
-  // Build all five exhibits
+  // Build all five exhibits. The conformance panel sits right after the
+  // fundamentals so the learner meets the proof before exploring the demos.
   main.appendChild(buildExhibit1());
+  main.appendChild(buildConformancePanel(announce));
   main.appendChild(buildExhibit2(announce));
   main.appendChild(buildExhibit3(announce));
   main.appendChild(buildExhibit4(announce));

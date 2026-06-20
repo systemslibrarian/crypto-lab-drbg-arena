@@ -10,7 +10,7 @@
   --border-accent: #3a3a5a;
   --text-primary: #e0e0e8;
   --text-secondary: #8888a0;
-  --text-muted: #7878a0;
+  --text-muted: #8585a0; /* ≥4.5:1 on panel bg for WCAG AA normal text */
   --green-clean: #00ff41;
   --green-dim: #00cc33;
   --green-glow: rgba(0, 255, 65, 0.15);
@@ -46,10 +46,7 @@
 
 /* ─── Theme toggle ────────────────────────────────────────────── */
 .theme-toggle {
-  position: absolute;
-  top: 50%;
-  right: 1.5rem;
-  transform: translateY(-50%);
+  flex: 0 0 auto;
   width: 2.75rem;
   height: 2.75rem;
   border-radius: 50%;
@@ -242,7 +239,7 @@ body { animation: crt-flicker 4s infinite; }
 }
 .field-group label {
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -284,7 +281,7 @@ body { animation: crt-flicker 4s infinite; }
 /* ─── Copy button ─────────────────────────────────────────────── */
 .copy-btn {
   font-family: var(--font-mono);
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   padding: 0.25rem 0.5rem;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);

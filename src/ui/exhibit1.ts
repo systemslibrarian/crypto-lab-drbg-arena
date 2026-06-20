@@ -58,30 +58,34 @@ export function buildExhibit1(): HTMLElement {
 
       <div class="panel">
         <div class="panel-header">
-          <span aria-hidden="true">🛡️</span> Four Security Properties
+          <span aria-hidden="true">🛡️</span> Security Properties
         </div>
+        <p style="font-size:0.8rem;line-height:1.6;color:var(--text-muted);margin:0">
+          On top of the baseline requirement that output is computationally
+          indistinguishable from true randomness, SP 800-90A defines
+          <strong style="color:var(--text-primary)">two</strong> security properties
+          around <em>state compromise</em>. They protect opposite directions in time:
+        </p>
         <ol style="list-style:decimal;padding-left:1.5rem;display:flex;flex-direction:column;gap:0.75rem" role="list">
           <li style="font-size:0.85rem;line-height:1.7;color:var(--text-primary)">
-            <strong>Backtracking resistance</strong>
-            <span style="color:var(--text-secondary)"> — prior outputs cannot be recovered if
-            the internal state is later compromised.</span>
+            <strong>Backtracking resistance</strong> <span style="color:var(--text-muted)">(protects the past)</span>
+            <span style="color:var(--text-secondary)"> — if the internal state is compromised at some
+            moment, all outputs produced <em>before</em> it stay secure. The generator cannot be run
+            backwards. All three constructions provide this by default, because each step replaces the
+            state with a one-way function of itself.</span>
           </li>
           <li style="font-size:0.85rem;line-height:1.7;color:var(--text-primary)">
-            <strong>Prediction resistance</strong>
-            <span style="color:var(--text-secondary)"> — future outputs cannot be predicted from
-            past outputs without knowing the seed.</span>
-          </li>
-          <li style="font-size:0.85rem;line-height:1.7;color:var(--text-primary)">
-            <strong>Forward secrecy</strong>
-            <span style="color:var(--text-secondary)"> — compromising the current state does not
-            expose prior outputs.</span>
-          </li>
-          <li style="font-size:0.85rem;line-height:1.7;color:var(--text-primary)">
-            <strong>Statistical indistinguishability</strong>
-            <span style="color:var(--text-secondary)"> — output is computationally indistinguishable
-            from true randomness.</span>
+            <strong>Prediction resistance</strong> <span style="color:var(--text-muted)">(protects the future)</span>
+            <span style="color:var(--text-secondary)"> — if the state is compromised, outputs produced
+            <em>after</em> it become secure again only once the DRBG is <strong style="color:var(--text-primary)">reseeded</strong>
+            with fresh entropy. It is <em>not</em> automatic: it is the caller's job to request a reseed
+            (the <span style="font-family:var(--font-mono)">Reseed</span> control in the demos below).</span>
           </li>
         </ol>
+        <p style="font-size:0.8rem;line-height:1.6;color:var(--text-muted);margin:0">
+          "Forward secrecy" is just another name for backtracking resistance — the two are the same
+          property, not separate guarantees.
+        </p>
       </div>
 
       <div class="panel">

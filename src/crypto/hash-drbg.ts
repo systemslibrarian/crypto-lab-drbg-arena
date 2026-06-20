@@ -37,7 +37,8 @@ async function hashDf(
   inputString: Uint8Array,
   numBytes: number
 ): Promise<Uint8Array> {
-  const hashLen = inputString.length > 0 ? (await hash(new Uint8Array(1))).length : 32;
+  // outlen of the chosen hash (32 for SHA-256, 64 for SHA-512), probed once.
+  const hashLen = (await hash(new Uint8Array(1))).length;
   const iterations = Math.ceil(numBytes / hashLen);
   const temp: Uint8Array[] = [];
 

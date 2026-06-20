@@ -64,11 +64,11 @@ export function buildExhibit3(announce: (msg: string) => void): HTMLElement {
         </p>
         <div class="two-col">
           <div>
-            <div style="font-family:var(--font-mono);font-size:0.7rem;color:var(--green-clean);margin-bottom:0.25rem">CTR_DRBG</div>
+            <div style="font-family:var(--font-mono);font-size:0.75rem;color:var(--green-clean);margin-bottom:0.25rem">CTR_DRBG</div>
             <div class="hex-output" id="ctr-cmp-output" aria-label="CTR DRBG comparison output"></div>
           </div>
           <div>
-            <div style="font-family:var(--font-mono);font-size:0.7rem;color:var(--green-clean);margin-bottom:0.25rem">HMAC_DRBG</div>
+            <div style="font-family:var(--font-mono);font-size:0.75rem;color:var(--green-clean);margin-bottom:0.25rem">HMAC_DRBG</div>
             <div class="hex-output" id="ctr-cmp-hmac" aria-label="HMAC DRBG comparison output"></div>
           </div>
         </div>

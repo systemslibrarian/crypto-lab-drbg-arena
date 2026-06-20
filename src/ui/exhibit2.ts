@@ -61,13 +61,13 @@ export function buildExhibit2(announce: (msg: string) => void): HTMLElement {
         </p>
         <div style="display:flex;flex-direction:column;gap:0.5rem">
           <div>
-            <div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--text-muted);margin-bottom:0.25rem">BEFORE</div>
+            <div style="font-family:var(--font-mono);font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem">BEFORE</div>
             <div class="state-row"><span class="state-label">K:</span><span class="state-value" id="hmac-prev-k"></span></div>
             <div class="state-row"><span class="state-label">V:</span><span class="state-value" id="hmac-prev-v"></span></div>
           </div>
           <div style="text-align:center;color:var(--green-clean);font-family:var(--font-mono);font-size:0.8rem" aria-hidden="true">↓ Generate ↓</div>
           <div>
-            <div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--text-muted);margin-bottom:0.25rem">AFTER</div>
+            <div style="font-family:var(--font-mono);font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem">AFTER</div>
             <div class="state-row"><span class="state-label">K:</span><span class="state-value state-changed" id="hmac-new-k"></span></div>
             <div class="state-row"><span class="state-label">V:</span><span class="state-value state-changed" id="hmac-new-v"></span></div>
           </div>
@@ -147,7 +147,13 @@ function wireExhibit2(section: HTMLElement, announce: (msg: string) => void): vo
 
     const result = await hmacDrbgGenerate(currentState, numBytes);
     currentState = result.state;
+    renderResult(result, `HMAC_DRBG generated ${numBytes} bytes`);
+  }
 
+  function renderResult(
+    result: Awaited<ReturnType<typeof hmacDrbgGenerate>>,
+    message: string,
+  ): void {
     outputPanel.style.display = '';
     statePanel.style.display = '';
     outputEl.textContent = toHex(result.output);
@@ -160,7 +166,7 @@ function wireExhibit2(section: HTMLElement, announce: (msg: string) => void): vo
     sameSeedBtn.disabled = false;
     reseedBtn.disabled = false;
     copyBtn.disabled = false;
-    announce(`HMAC_DRBG generated ${numBytes} bytes`);
+    announce(message);
   }
 
   generateBtn.addEventListener('click', () => { void doGenerate(false); });
@@ -168,10 +174,14 @@ function wireExhibit2(section: HTMLElement, announce: (msg: string) => void): vo
 
   reseedBtn.addEventListener('click', async () => {
     if (!currentState) return;
+    // Reseed mixes fresh entropy into the *existing* state (this is what
+    // provides prediction resistance), then generate from the reseeded state —
+    // we do NOT re-instantiate, so the demo shows a genuine reseed.
+    const numBytes = parseInt(bytesSlider.value, 10);
     currentState = await hmacDrbgReseed(currentState);
-    announce('HMAC_DRBG reseeded with new entropy');
-    // Now generate to show change
-    void doGenerate(false);
+    const result = await hmacDrbgGenerate(currentState, numBytes);
+    currentState = result.state;
+    renderResult(result, `HMAC_DRBG reseeded with fresh entropy, then generated ${numBytes} bytes`);
   });
 
   copyBtn.addEventListener('click', () => {

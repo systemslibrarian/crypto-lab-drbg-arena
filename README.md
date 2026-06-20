@@ -17,7 +17,23 @@ DRBG Arena demonstrates the three NIST SP 800-90A approved Deterministic Random 
 
 **[https://systemslibrarian.github.io/crypto-lab-drbg-arena/](https://systemslibrarian.github.io/crypto-lab-drbg-arena/)**
 
-Five exhibits: DRBG fundamentals and security properties, HMAC_DRBG with interactive state visualizer, CTR_DRBG with AES comparison and timing, Hash_DRBG with full three-way comparison table, and NIST SP 800-22 statistical tests run live on all three implementations with a Dual_EC_DRBG comparison showing why statistical tests alone are insufficient.
+Five exhibits plus a live conformance check: DRBG fundamentals and security properties, HMAC_DRBG with interactive state visualizer, CTR_DRBG with AES comparison and timing, Hash_DRBG with full three-way comparison table, and NIST SP 800-22 statistical tests run live on all three implementations with a Dual_EC_DRBG comparison showing why statistical tests alone are insufficient.
+
+## Correctness Is Verified, Not Asserted
+
+A DRBG demo is only worth learning from if its output is provably conformant. All three constructions are tested **byte-for-byte against the official NIST CAVP known-answer vectors** (DRBG Validation System):
+
+| Algorithm | Vector | Status |
+|-----------|--------|--------|
+| HMAC_DRBG | SHA-256, no prediction resistance | ✅ exact match |
+| CTR_DRBG  | AES-256 (no df), no prediction resistance | ✅ exact match |
+| Hash_DRBG | SHA-256, no prediction resistance | ✅ exact match (both Generate calls) |
+
+The same vectors run three ways: in CI on every commit (`npm test`), as a **live self-check in your browser** on page load (the "Live Conformance Check" panel), and as the values displayed in that panel — one source of truth in [`src/crypto/self-check.ts`](src/crypto/self-check.ts), no drift. The GitHub Pages deploy is gated on the test job: if a vector ever fails to match, the site does not ship.
+
+```bash
+npm test        # run the NIST CAVP known-answer tests + property tests
+```
 
 ## How to Run Locally
 
