@@ -171,7 +171,7 @@ function wireExhibit5(section: HTMLElement, announce: (msg: string) => void): vo
         col.className = 'bar-col';
         const heightPct = Math.min(e.value * 100, 100);
         col.innerHTML = `
-          <div class="bar" style="height:${heightPct}%;background:${e.color}" role="presentation"></div>
+          <div class="bar" style="height:${heightPct}%;background-color:${e.color}" role="presentation"></div>
           <div class="bar-label">${e.label}<br>${(e.value * 8).toFixed(2)} b/B</div>
         `;
         chart.appendChild(col);

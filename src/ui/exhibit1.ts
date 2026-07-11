@@ -31,13 +31,13 @@ export function buildExhibit1(): HTMLElement {
           <span aria-hidden="true">🏗️</span> Three NIST-Approved Constructions
         </div>
         <ul style="list-style:none;padding:0;display:flex;flex-direction:column;gap:0.5rem" role="list">
-          <li style="font-family:var(--font-mono);font-size:0.85rem;padding:0.5rem 0.75rem;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-secondary)">
+          <li style="font-family:var(--font-mono);font-size:0.85rem;padding:0.5rem 0.75rem;border:1px solid var(--border-color);border-radius:4px;background-color:var(--bg-secondary)">
             <strong style="color:var(--green-clean)">Hash_DRBG</strong> — based on SHA-256 / SHA-512
           </li>
-          <li style="font-family:var(--font-mono);font-size:0.85rem;padding:0.5rem 0.75rem;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-secondary)">
+          <li style="font-family:var(--font-mono);font-size:0.85rem;padding:0.5rem 0.75rem;border:1px solid var(--border-color);border-radius:4px;background-color:var(--bg-secondary)">
             <strong style="color:var(--green-clean)">HMAC_DRBG</strong> — based on HMAC-SHA-256
           </li>
-          <li style="font-family:var(--font-mono);font-size:0.85rem;padding:0.5rem 0.75rem;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-secondary)">
+          <li style="font-family:var(--font-mono);font-size:0.85rem;padding:0.5rem 0.75rem;border:1px solid var(--border-color);border-radius:4px;background-color:var(--bg-secondary)">
             <strong style="color:var(--green-clean)">CTR_DRBG</strong> — based on AES-256 in counter mode
           </li>
         </ul>

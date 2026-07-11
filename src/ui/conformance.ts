@@ -56,7 +56,7 @@ export function buildConformancePanel(announce: (msg: string) => void): HTMLElem
       for (const r of results) {
         const row = document.createElement('div');
         row.style.cssText =
-          'border:1px solid var(--border-color);border-radius:4px;padding:0.6rem 0.75rem;background:var(--bg-secondary)';
+          'border:1px solid var(--border-color);border-radius:4px;padding:0.6rem 0.75rem;background-color:var(--bg-secondary)';
         row.innerHTML = `
           <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
             <span class="${r.pass ? 'stat-pass' : 'stat-fail'}" style="font-family:var(--font-mono)">
