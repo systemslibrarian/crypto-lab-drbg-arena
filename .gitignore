@@ -12,6 +12,11 @@ dist-ssr
 out
 *.local
 
+# Playwright a11y gate artifacts
+/test-results/
+/playwright-report/
+/.pw-browsers/
+
 .vscode/*
 !.vscode/extensions.json
 .idea
