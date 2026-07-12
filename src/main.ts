@@ -25,56 +25,35 @@ function initUI(): void {
 
   app.innerHTML = '';
 
-  // ─── Skip link ──────────────────────────────────────────────
-  const skipLink = document.createElement('a');
-  skipLink.href = '#main-content';
-  skipLink.className = 'skip-link';
-  skipLink.textContent = 'Skip to content';
-  app.appendChild(skipLink);
-
-  // ─── Header ─────────────────────────────────────────────────
-  const header = document.createElement('header');
-  header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:1rem 1.5rem;border-bottom:1px solid var(--border-color);flex-wrap:wrap;gap:0.5rem 1rem';
-
-  // Title + subtitle as one left-hand group so the toggle (right) never overlaps them.
-  const titleGroup = document.createElement('div');
-  titleGroup.style.cssText = 'display:flex;align-items:baseline;gap:0.75rem;flex-wrap:wrap;min-width:0';
-
-  const h1 = document.createElement('h1');
-  h1.style.cssText = 'font-family:var(--font-mono);font-size:1.1rem;letter-spacing:0.15em;color:var(--green-clean);margin:0';
-  h1.textContent = 'DRBG ARENA';
-  titleGroup.appendChild(h1);
-
-  const subtitle = document.createElement('span');
-  subtitle.style.cssText = 'font-size:0.75rem;color:var(--text-secondary);font-family:var(--font-sans)';
-  subtitle.textContent = 'NIST SP 800-90A';
-  titleGroup.appendChild(subtitle);
-
-  header.appendChild(titleGroup);
-
-  // Theme toggle
-  const themeToggle = document.createElement('button');
-  themeToggle.className = 'theme-toggle';
-  const initTheme = document.documentElement.getAttribute('data-theme') ?? 'dark';
-  themeToggle.textContent = initTheme === 'dark' ? '🌙' : '☀️';
-  themeToggle.setAttribute('aria-label', initTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
-  themeToggle.addEventListener('click', () => {
-    const current = document.documentElement.getAttribute('data-theme');
-    const next = current === 'dark' ? 'light' : 'dark';
-    document.documentElement.setAttribute('data-theme', next);
-    localStorage.setItem('theme', next);
-    themeToggle.textContent = next === 'dark' ? '🌙' : '☀️';
-    themeToggle.setAttribute('aria-label', next === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
-    announce(`Switched to ${next} mode`);
-  });
-  header.appendChild(themeToggle);
-  app.appendChild(header);
+  // The shared crypto-lab topbar already ships a .cl-skip-link and the single
+  // banner landmark, so this lab renders no in-page skip link or header here
+  // (a redundant skip link child of #app trips axe `region`).
 
   // ─── Main content ───────────────────────────────────────────
   const main = document.createElement('main');
   main.id = 'main-content';
   main.setAttribute('tabindex', '-1');
   main.style.cssText = 'padding:1rem 1.5rem;max-width:960px;margin:0 auto';
+
+  // ─── Hero (fleet standard) ──────────────────────────────────
+  // Rendered as a <div class="cl-hero"> (not <header>) so it never becomes a
+  // second banner landmark alongside the shared .cl-topbar; the shared
+  // dedupeBanner only demotes <header> children of <body>, not of #app/<main>.
+  // CSS is keyed on the .cl-hero class, so styling is identical.
+  const hero = document.createElement('div');
+  hero.className = 'cl-hero';
+  hero.innerHTML = `
+    <div class="cl-hero-main">
+      <h1 class="cl-hero-title">DRBG Arena</h1>
+      <p class="cl-hero-sub">HMAC · CTR · Hash_DRBG · NIST SP 800-90A</p>
+      <p class="cl-hero-desc">Seed each of the three NIST-approved DRBGs and watch a high-entropy seed expand through the seed → state → output → reseed lifecycle into a deterministic pseudorandom stream.</p>
+    </div>
+    <aside class="cl-hero-why" aria-label="Why it matters">
+      <span class="cl-hero-why-label">WHY IT MATTERS</span>
+      <p class="cl-hero-why-text">Keys, nonces, and IVs are only as safe as the generator behind them. A DRBG must stay unpredictable even if its state leaks, and passing statistical tests proves nothing — Dual_EC looked random too.</p>
+    </aside>
+  `;
+  main.appendChild(hero);
 
   // Intro
   const intro = document.createElement('div');
