@@ -18,7 +18,13 @@ DRBG Arena demonstrates the three NIST SP 800-90A approved Deterministic Random 
 
 **[systemslibrarian.github.io/crypto-lab-drbg-arena](https://systemslibrarian.github.io/crypto-lab-drbg-arena/)**
 
-Five exhibits plus a live conformance check: DRBG fundamentals and security properties, HMAC_DRBG with interactive state visualizer, CTR_DRBG with AES comparison and timing, Hash_DRBG with full three-way comparison table, and NIST SP 800-22 statistical tests run live on all three implementations with a Dual_EC_DRBG comparison showing why statistical tests alone are insufficient.
+Five exhibits plus a live conformance check:
+
+1. **DRBG fundamentals and security properties** — what a DRBG is, the three constructions, backtracking vs prediction resistance, and the seed → state → output → reseed data flow.
+2. **HMAC_DRBG** — an animated *state-update* visualizer that shows the old V flowing through the one-way `HMAC(K, V)` box to fork out both the output stream and a fresh (K, V), making backtracking resistance mechanical rather than asserted; a **determinism panel** that stacks and diff-highlights "Same Seed Again" (identical stream) against a one-click "Flip 1 Seed Digit" avalanche (the entire stream changes); plus inline glossary terms for seed, entropy, nonce, and personalization string.
+3. **CTR_DRBG** — AES-256 construction with a same-entropy side-by-side against HMAC_DRBG and an inline `seedlen` glossary explaining why AES-256 needs 48 bytes (256-bit key + 128-bit block).
+4. **Hash_DRBG** — full three-way comparison table.
+5. **Statistical output quality** — simplified NIST SP 800-22 tests run live on all three implementations, a Shannon-entropy chart (with an explicit "taller ≠ more secure" caption), a **randomness pixel grid** contrasting real DRBG output against a deliberately-broken LCG so the eye can see what "looks random" means, and a Dual_EC_DRBG comparison — with an on-screen disclosure that the row uses OS randomness as a stand-in — showing that clean-looking output proves nothing about a hidden trapdoor.
 
 ## What Can Go Wrong
 

@@ -398,6 +398,234 @@ body { animation: crt-flicker 4s infinite; }
   text-align: center;
 }
 
+/* ─── Glossary term (inline definition on first use) ─────────── */
+/* A dotted-underlined term whose definition appears in a <details> the
+   learner can expand inline. Icon + text + dotted underline signal it is
+   interactive without relying on colour alone. */
+.gloss {
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background-color: var(--bg-secondary);
+  margin: 0.35rem 0;
+  font-size: 0.8rem;
+}
+.gloss > summary {
+  cursor: pointer;
+  padding: 0.4rem 0.6rem;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.gloss > summary::-webkit-details-marker { display: none; }
+.gloss > summary::before {
+  content: '?';
+  display: inline-grid;
+  place-items: center;
+  width: 1.05rem;
+  height: 1.05rem;
+  border: 1px solid var(--blue-info);
+  border-radius: 50%;
+  color: var(--blue-info);
+  font-size: 0.7rem;
+  font-weight: 700;
+  flex: 0 0 auto;
+}
+.gloss > summary .gloss-term {
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+}
+.gloss[open] > summary { border-bottom: 1px solid var(--border-color); }
+.gloss:focus-within { outline: 2px solid var(--green-clean); outline-offset: 1px; }
+.gloss-body {
+  padding: 0.5rem 0.7rem;
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  line-height: 1.65;
+  color: var(--text-secondary);
+}
+.gloss-body strong { color: var(--text-primary); }
+.gloss-body code {
+  font-family: var(--font-mono);
+  color: var(--blue-info);
+}
+
+/* ─── HMAC_DRBG state-update animation ───────────────────────── */
+/* Visualises one Generate step as a mechanism, not a blob swap:
+   old V feeds a one-way HMAC box, which forks into the output stream and
+   the new (K,V). The old state is greyed/struck to say "destroyed". */
+.update-flow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background-color: var(--bg-secondary);
+}
+.uf-box {
+  padding: 0.5rem 0.6rem;
+  border-radius: 5px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-panel);
+  min-width: 0;
+}
+.uf-box .uf-title {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  margin-bottom: 0.2rem;
+  display: block;
+}
+.uf-box .uf-hex {
+  color: var(--text-primary);
+  word-break: break-all;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+.uf-old { border-color: var(--red-corrupt); }
+.uf-old .uf-hex { color: var(--text-muted); text-decoration: line-through; }
+.uf-func {
+  grid-column: 2;
+  padding: 0.6rem 0.7rem;
+  border: 2px solid var(--blue-info);
+  border-radius: 6px;
+  background-color: color-mix(in srgb, var(--blue-info) 12%, transparent);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
+}
+.uf-func small {
+  display: block;
+  font-weight: 400;
+  font-size: 0.62rem;
+  color: var(--text-secondary);
+  margin-top: 0.15rem;
+  white-space: normal;
+}
+.uf-arrow {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--blue-info);
+  text-align: center;
+  font-weight: 700;
+}
+.uf-out { border-color: var(--green-clean); }
+.uf-out .uf-hex { color: var(--green-clean); }
+.uf-new { border-color: var(--amber-warn); }
+.uf-new .uf-hex { color: var(--text-primary); }
+/* One-shot highlight pulse each time an update runs */
+@keyframes uf-pulse {
+  0% { box-shadow: 0 0 0 0 var(--amber-warn); }
+  100% { box-shadow: 0 0 0 6px transparent; }
+}
+.uf-animate .uf-func { animation: uf-fade 0.5s ease; }
+.uf-animate .uf-new, .uf-animate .uf-out { animation: uf-pulse 0.7s ease; }
+@keyframes uf-fade { from { opacity: 0.3; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .uf-animate .uf-func, .uf-animate .uf-new, .uf-animate .uf-out { animation: none; }
+}
+@media (max-width: 640px) {
+  .update-flow { grid-template-columns: 1fr; }
+  .uf-func { grid-column: 1; }
+}
+.uf-caption {
+  font-size: 0.78rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  margin-top: 0.6rem;
+}
+.uf-caption strong { color: var(--text-primary); }
+
+/* ─── Determinism diff (Same Seed Again) ─────────────────────── */
+.diff-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.diff-row .diff-tag {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  margin-bottom: 0.2rem;
+  display: block;
+}
+.diff-hex {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.6;
+  word-break: break-all;
+  padding: 0.6rem;
+  background-color: rgba(0,0,0,0.4);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+}
+[data-theme="light"] .diff-hex { background-color: rgba(0,0,0,0.06); }
+/* Identical bytes: calm green. Differing bytes: high-contrast amber box +
+   underline so it reads without colour too. */
+.diff-same { color: var(--green-clean); }
+/* Differing nibbles: high-contrast foreground (text-primary, AA on both the
+   dark hex box and the light panel) plus an amber underline + tint so the
+   distinction survives greyscale and colour-blindness. Foreground is NOT amber
+   (amber-on-amber fails AA in the light theme). */
+.diff-diff {
+  color: var(--text-primary);
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-color: var(--amber-warn);
+  text-decoration-thickness: 2px;
+  background-color: color-mix(in srgb, var(--amber-warn) 30%, transparent);
+  border-radius: 2px;
+}
+.diff-verdict {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+}
+/* Status colours use the border + a leading glyph the JS supplies (✓/✗/~), so
+   the text itself stays at AA-contrast text-primary rather than a thin amber. */
+.diff-verdict.is-same { border-color: var(--green-clean); color: var(--green-clean); }
+.diff-verdict.is-diff { border-color: var(--amber-warn); color: var(--text-primary); }
+
+/* ─── Randomness pixel grids (Exhibit 5) ─────────────────────── */
+.pixel-grids {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+@media (max-width: 640px) { .pixel-grids { grid-template-columns: 1fr; } }
+.pixel-cell { display: flex; flex-direction: column; gap: 0.35rem; }
+.pixel-cell canvas {
+  width: 100%;
+  max-width: 256px;
+  aspect-ratio: 1 / 1;
+  image-rendering: pixelated;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background-color: var(--bg-secondary);
+}
+.pixel-caption {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.pixel-caption strong { color: var(--text-primary); }
+
 /* ─── Layout helpers ──────────────────────────────────────────── */
 .controls-row {
   display: flex;

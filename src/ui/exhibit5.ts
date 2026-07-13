@@ -10,6 +10,43 @@ import { getRandomEntropy } from '../crypto/utils';
 import { runAllTests } from '../stats/nist-tests';
 
 
+/**
+ * A deliberately-broken generator: a linear congruential generator (LCG), the
+ * same family behind Math.random(). Its low bits are highly non-random, so
+ * painting the bytes reveals visible diagonal banding. This is an HONEST bad
+ * example — we are showing real LCG output, not a faked pattern.
+ *
+ * Constants are the classic MINSTD (Park–Miller) multiplier; we take the top
+ * byte of each state so the structure is visible at a glance.
+ */
+function lcgBytes(n: number): Uint8Array {
+  const out = new Uint8Array(n);
+  let s = 1234567 >>> 0;
+  for (let i = 0; i < n; i++) {
+    s = (Math.imul(s, 16807) + 12345) >>> 0;
+    out[i] = (s >>> 24) & 0xff;
+  }
+  return out;
+}
+
+/** Paint a 64x64 canvas: one output byte per pixel as a greyscale value. */
+function paintGrid(canvas: HTMLCanvasElement | null, bytes: Uint8Array): void {
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  const w = canvas.width;
+  const h = canvas.height;
+  const img = ctx.createImageData(w, h);
+  for (let i = 0; i < w * h; i++) {
+    const v = bytes[i] ?? 0;
+    img.data[i * 4] = v;
+    img.data[i * 4 + 1] = v;
+    img.data[i * 4 + 2] = v;
+    img.data[i * 4 + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
 export function buildExhibit5(announce: (msg: string) => void): HTMLElement {
   const section = document.createElement('section');
   section.className = 'exhibit';
@@ -60,7 +97,42 @@ export function buildExhibit5(announce: (msg: string) => void): HTMLElement {
 
         <div class="panel">
           <div class="panel-header"><span aria-hidden="true">📊</span> Shannon Entropy Comparison</div>
+          <p style="font-size:0.78rem;line-height:1.6;color:var(--text-muted);margin:0">
+            All three bars sit at essentially <strong style="color:var(--text-primary)">8.00 bits/byte</strong> — the
+            maximum. That is the point: good generators are <em>indistinguishable</em> here.
+            A taller bar would <strong style="color:var(--text-primary)">not</strong> mean "more secure";
+            a much <em>shorter</em> one would just flag an obviously broken generator.
+          </p>
           <div class="bar-chart" id="entropy-chart" role="img" aria-label="Bar chart comparing Shannon entropy across DRBGs"></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header"><span aria-hidden="true">🟩</span> What Random <em>Looks</em> Like</div>
+          <p style="font-size:0.85rem;line-height:1.7;color:var(--text-secondary);margin:0">
+            Each pixel is one output byte painted as a greyscale value (00 = black, FF = white).
+            The DRBG grid on the left is snow; the broken generator on the right —
+            a textbook <strong style="color:var(--text-primary)">linear congruential generator (LCG)</strong>,
+            the family behind <code style="font-family:var(--font-mono)">Math.random()</code> — shows
+            visible diagonal banding. Your eye catches the LCG instantly.
+          </p>
+          <div class="pixel-grids">
+            <div class="pixel-cell">
+              <canvas id="pixel-drbg" width="64" height="64"
+                      role="img" aria-label="64 by 64 grid of HMAC_DRBG output bytes as greyscale pixels: no visible pattern, looks like random snow"></canvas>
+              <span class="pixel-caption"><strong>HMAC_DRBG</strong> — passes "looks random"</span>
+            </div>
+            <div class="pixel-cell">
+              <canvas id="pixel-lcg" width="64" height="64"
+                      role="img" aria-label="64 by 64 grid of linear congruential generator output bytes as greyscale pixels: clear diagonal banding, obviously not random"></canvas>
+              <span class="pixel-caption"><strong>Broken LCG</strong> — visible diagonal structure</span>
+            </div>
+          </div>
+          <p style="font-size:0.78rem;line-height:1.6;color:var(--text-muted);margin:0">
+            But "looks random" is a floor, not a ceiling. A backdoored generator like
+            Dual_EC produces a grid that looks <em>exactly</em> as clean as HMAC_DRBG's —
+            the eye and the tests both pass it. Structure you can see is the <em>easy</em>
+            failure to catch.
+          </p>
         </div>
       </div>
 
@@ -72,6 +144,13 @@ export function buildExhibit5(announce: (msg: string) => void): HTMLElement {
           <strong style="color:var(--red-corrupt)">cannot detect a mathematically sound backdoor</strong>.
           The Dual_EC backdoor is undetectable by statistical analysis — it only helps
           the party who knows the discrete log relationship between P and Q.
+        </p>
+        <p style="font-size:0.8rem;line-height:1.6;color:var(--text-primary);border:1px solid var(--amber-warn);border-radius:6px;padding:0.6rem 0.75rem;background-color:rgba(255,170,0,0.06)">
+          <strong>Honest disclosure:</strong> we can't run real Dual_EC_DRBG in a browser, so
+          this row uses OS randomness (<code style="font-family:var(--font-mono)">crypto.getRandomValues</code>)
+          as a stand-in. That is deliberate, not a cheat: the whole lesson is that
+          <strong>clean-looking output tells you nothing about a hidden trapdoor</strong>. The stand-in
+          passes exactly as the real backdoored generator did — which is the point.
         </p>
         <div style="overflow-x:auto">
           <table class="cmp-table" id="dualec-table" aria-label="Dual EC DRBG statistical test results">
@@ -180,6 +259,15 @@ function wireExhibit5(section: HTMLElement, announce: (msg: string) => void): vo
       // Update chart aria-label with actual values for screen readers
       const chartLabel = entropies.map(e => `${e.label}: ${(e.value * 8).toFixed(2)} bits per byte`).join(', ');
       chart.setAttribute('aria-label', `Shannon entropy comparison. ${chartLabel}`);
+
+      // Randomness pixel grids: real HMAC_DRBG bytes vs a deliberately-broken
+      // LCG. Both are painted from actual byte streams — nothing is faked.
+      // The grid needs 64*64 = 4096 bytes; draw a dedicated real stream so the
+      // stats above keep running on their own 1024-byte samples.
+      const gridState = await hmacDrbgInstantiate(getRandomEntropy(32), getRandomEntropy(16));
+      const gridResult = await hmacDrbgGenerate(gridState, 64 * 64);
+      paintGrid(section.querySelector<HTMLCanvasElement>('#pixel-drbg'), gridResult.output);
+      paintGrid(section.querySelector<HTMLCanvasElement>('#pixel-lcg'), lcgBytes(64 * 64));
 
       resultsDiv.style.display = '';
 

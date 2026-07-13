@@ -6,6 +6,7 @@
 import { ctrDrbgInstantiate, ctrDrbgGenerate } from '../crypto/ctr-drbg';
 import { hmacDrbgInstantiate, hmacDrbgGenerate } from '../crypto/hmac-drbg';
 import { toHex, fromHex, getRandomEntropy } from '../crypto/utils';
+import { glossary } from './glossary';
 
 export function buildExhibit3(announce: (msg: string) => void): HTMLElement {
   const section = document.createElement('section');
@@ -30,8 +31,9 @@ export function buildExhibit3(announce: (msg: string) => void): HTMLElement {
         <div class="panel-header"><span aria-hidden="true">⚙️</span> Controls</div>
         <div class="field-group">
           <label for="ctr-entropy">Entropy (hex or leave blank for auto)</label>
-          <input type="text" id="ctr-entropy" placeholder="e.g. a1b2c3... (48 hex chars for AES-256)" autocomplete="off" spellcheck="false" />
+          <input type="text" id="ctr-entropy" placeholder="e.g. a1b2c3... (96 hex chars = 48 bytes seedlen)" autocomplete="off" spellcheck="false" />
         </div>
+        ${glossary('seedlen', 'entropy')}
         <div class="field-group">
           <label for="ctr-bytes">Output bytes: <span id="ctr-bytes-val">32</span></label>
           <div class="slider-group">
