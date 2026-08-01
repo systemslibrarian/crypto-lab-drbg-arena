@@ -164,8 +164,10 @@ export function buildExhibit2(announce: (msg: string) => void): HTMLElement {
       </div>
 
       <div class="callout" role="note">
-        <strong>Why this matters:</strong> HMAC_DRBG is used in OpenSSL, BoringSSL, and most
-        TLS implementations worldwide. It is the direct, approved replacement for the
+        <strong>Why this matters:</strong> HMAC_DRBG is deployed anywhere a DRBG is built
+        from a hash — it is the nonce generator inside RFC 6979 deterministic ECDSA, and a
+        standard option across TLS stacks. (OpenSSL and BoringSSL default to CTR_DRBG with
+        AES-256; both constructions are approved.) It is one of the approved replacements for the
         backdoored Dual_EC_DRBG shown in
         <a href="https://systemslibrarian.github.io/crypto-lab-corrupted-oracle/"
            target="_blank" rel="noopener noreferrer"

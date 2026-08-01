@@ -47,22 +47,21 @@ describe('NIST CAVP known-answer tests', () => {
     expect(results).toHaveLength(3);
   });
 
-  // A second Hash_DRBG vector that exercises the *second* Generate call, proving
-  // the V += H + C + reseed_counter state update between calls is correct.
-  it('Hash_DRBG SHA-256 second Generate matches', async () => {
-    const entropy = fromHex(
-      '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f' +
-      '202122232425262728292a2b2c2d2e2f30313233343536'
-    );
-    const nonce = fromHex('2021222324252627');
-    const gen2 =
-      '5ff4ba493c40cfff3b01e472c575668cce3880b9290b05bfede5ec96ed5e9b28' +
-      '98508b09bc800eee099a3c90602abd4b1d4f343d497c6055c87bb956d53bf351';
-    let st = await hashDrbgInstantiate(entropy, nonce, undefined, 'SHA-256');
-    let r = await hashDrbgGenerate(st, 64);
-    st = r.state;
-    r = await hashDrbgGenerate(st, 64);
-    expect(toHex(r.output)).toBe(gen2);
+  // A second Hash_DRBG vector (CAVP no_reseed, SHA-256, COUNT = 1). Like every
+  // no-PR vector its ReturnedBits is the *second* Generate output, so this also
+  // proves the V += H + C + reseed_counter state update between calls is correct.
+  it('Hash_DRBG SHA-256 second CAVP vector matches', async () => {
+    const entropy = fromHex('72da39d053c6e052bde22d10ace144cc74a65fa22610140168c6e01a5a987918');
+    const nonce = fromHex('c015f7a717b530cd6b3db49fdf62c494');
+    const returnedBits =
+      '2daae5267ee22d8488ec158086bca87f1abffa5fe76dc532516e0f93dea5ad30' +
+      'f6d179e977e2bba496868e535c0489227af41ae73d61909b2dba2d94f80530dd' +
+      '87a9292080f6bef224d1292d70a5d35c5b5b94f7bf7c0f70f4cf1475c27de210' +
+      'c5173875f7bbe59f9adf07a721a914afe3ad1c8729947d514d2bb33f6c298b4c';
+    const st = await hashDrbgInstantiate(entropy, nonce, undefined, 'SHA-256');
+    let r = await hashDrbgGenerate(st, 128);
+    r = await hashDrbgGenerate(r.state, 128);
+    expect(toHex(r.output)).toBe(returnedBits);
   });
 });
 

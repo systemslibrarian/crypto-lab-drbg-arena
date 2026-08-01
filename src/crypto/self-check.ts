@@ -84,15 +84,15 @@ export const NIST_VECTORS: KatVector[] = [
   {
     algorithm: 'Hash_DRBG',
     detail: 'SHA-256 · no prediction resistance',
-    entropy:
-      '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f' +
-      '202122232425262728292a2b2c2d2e2f30313233343536',
-    nonce: '2021222324252627',
-    outLen: 64,
-    generates: 1, // this CAVP vector publishes the FIRST Generate output
+    entropy: 'a65ad0f345db4e0effe875c3a2e71f42c7129d620ff5c119a9ef55f05185e0fb',
+    nonce: '8581f9317517276e06e9607ddbcbcc2e',
+    outLen: 128,
+    generates: 2,
     expected:
-      '77e05a0e7dc78ab5d8934d5e93e82c06a07c04cee6c9c53045eeb485872777cf' +
-      '3b3e35c474f976b894bf301a86fa651f463970e89d4a0534b2ecad29ec044e7e',
+      'd3e160c35b99f340b2628264d1751060e0045da383ff57a57d73a673d2b8d80d' +
+      'aaf6a6c35a91bb4579d73fd0c8fed111b0391306828adfed528f018121b3febd' +
+      'c343e797b87dbb63db1333ded9d1ece177cfa6b71fe8ab1da46624ed6415e51c' +
+      'cde2c7ca86e283990eeaeb91120415528b2295910281b02dd431f4c9f70427df',
     run: async (entropy, nonce, outLen, generates) => {
       let st = await hashDrbgInstantiate(entropy, nonce, undefined, 'SHA-256');
       let r = await hashDrbgGenerate(st, outLen);
