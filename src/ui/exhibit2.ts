@@ -85,6 +85,16 @@ export function buildExhibit2(announce: (msg: string) => void): HTMLElement {
       <div class="panel" id="hmac-output-panel" style="display:none">
         <div class="panel-header"><span aria-hidden="true">📤</span> Output</div>
         <div class="hex-output" id="hmac-output" role="log" aria-live="polite" aria-label="HMAC DRBG hex output"></div>
+        <p style="font-size:0.78rem;line-height:1.6;color:var(--text-muted);margin:0.6rem 0 0.35rem">
+          SP 800-90A seeds from <em>three</em> inputs, not one. All three are shown, because the
+          output is a function of all of them — a hidden input would make "same seed, same
+          stream" untestable from what is on screen.
+        </p>
+        <div style="display:flex;flex-direction:column;gap:0.4rem">
+          <div class="state-row"><span class="state-label">entropy_input:</span><span class="state-value" id="hmac-seed-entropy"></span></div>
+          <div class="state-row"><span class="state-label">nonce:</span><span class="state-value" id="hmac-seed-nonce"></span></div>
+          <div class="state-row"><span class="state-label">personalization:</span><span class="state-value" id="hmac-seed-personal"></span></div>
+        </div>
       </div>
 
       <div class="panel" id="hmac-state-panel" style="display:none">
@@ -147,7 +157,7 @@ export function buildExhibit2(announce: (msg: string) => void): HTMLElement {
         </p>
         <div class="diff-stack" style="margin-top:0.5rem">
           <div class="diff-row">
-            <span class="diff-tag">First Generate (reference)</span>
+            <span class="diff-tag" id="diff-ref-tag">First Generate (reference)</span>
             <div class="diff-hex" id="diff-ref" tabindex="0" role="region" aria-label="Reference output stream"></div>
           </div>
           <div class="diff-row">
@@ -159,7 +169,11 @@ export function buildExhibit2(announce: (msg: string) => void): HTMLElement {
         <p style="font-size:0.78rem;line-height:1.6;color:var(--text-muted);margin:0.25rem 0 0">
           Same seed → same stream, every time: that's the <strong style="color:var(--text-primary)">Deterministic</strong> in DRBG.
           Flip one digit and the <em>entire</em> stream changes — the avalanche effect — so
-          the output reveals nothing about nearby seeds.
+          the output reveals nothing about nearby seeds. Note that <strong style="color:var(--text-primary)">Generate</strong>
+          draws a fresh nonce every time (shown above), so pressing it twice with the same typed
+          entropy is <em>not</em> the same seed and will not reproduce the stream.
+          <strong style="color:var(--text-primary)">Same Seed Again</strong> reuses all three inputs, which is what
+          makes it a determinism test rather than a coincidence.
         </p>
       </div>
 
@@ -200,6 +214,7 @@ function wireExhibit2(section: HTMLElement, announce: (msg: string) => void): vo
   const detPanel = section.querySelector<HTMLElement>('#hmac-determinism-panel')!;
   const updateFlow = section.querySelector<HTMLElement>('#hmac-update-flow')!;
   const diffRef = section.querySelector<HTMLElement>('#diff-ref')!;
+  const diffRefTag = section.querySelector<HTMLElement>('#diff-ref-tag')!;
   const diffCmp = section.querySelector<HTMLElement>('#diff-cmp')!;
   const diffCmpTag = section.querySelector<HTMLElement>('#diff-cmp-tag')!;
   const diffVerdict = section.querySelector<HTMLElement>('#diff-verdict')!;
@@ -208,9 +223,21 @@ function wireExhibit2(section: HTMLElement, announce: (msg: string) => void): vo
   let lastEntropy: Uint8Array | null = null;
   let lastNonce: Uint8Array | null = null;
   let lastPersonal: Uint8Array | null = null;
-  // The output of the most recent fresh Generate — the fixed reference the
-  // Same-Seed and Avalanche streams are diffed against.
-  let referenceOutput = '';
+  // The stream the seed material CURRENTLY loaded produces. Flipping a seed
+  // digit changes the seed, so it changes this too — previously the reference
+  // stayed pinned to the first Generate, which meant Flip → Same Seed Again
+  // diffed the flipped seed's stream against the pre-flip one and printed
+  // "✗ N hex digits differ (unexpected)" inside the determinism panel.
+  let seedStream = '';
+
+  /** Paint the reference row and say what it is, so the diff always has a stated baseline. */
+  function setReference(hex: string, tag: string): void {
+    diffRefTag.textContent = tag;
+    diffRef.innerHTML = hex
+      .split('')
+      .map((c) => `<span class="diff-same">${c}</span>`)
+      .join('');
+  }
 
   bytesSlider.addEventListener('input', () => {
     bytesDisplay.textContent = bytesSlider.value;
@@ -237,6 +264,17 @@ function wireExhibit2(section: HTMLElement, announce: (msg: string) => void): vo
     return result;
   }
 
+  /** Put the full seed material on screen: output = f(entropy, nonce, personalization). */
+  function renderSeedMaterial(): void {
+    section.querySelector<HTMLElement>('#hmac-seed-entropy')!.textContent =
+      lastEntropy ? toHex(lastEntropy) : '—';
+    section.querySelector<HTMLElement>('#hmac-seed-nonce')!.textContent =
+      lastNonce ? toHex(lastNonce) : '—';
+    const personal = personalInput.value.trim();
+    section.querySelector<HTMLElement>('#hmac-seed-personal')!.textContent =
+      personal.length > 0 ? personal : '(none)';
+  }
+
   // ── Fresh Generate: new seed, becomes the diff reference ──────
   async function doFreshGenerate(): Promise<void> {
     lastEntropy = getEntropy();
@@ -247,15 +285,13 @@ function wireExhibit2(section: HTMLElement, announce: (msg: string) => void): vo
 
     const result = await instantiateAndGenerate();
     currentState = result.state;
-    referenceOutput = toHex(result.output);
+    seedStream = toHex(result.output);
+    renderSeedMaterial();
 
     renderResult(result, `HMAC_DRBG generated ${result.output.length} bytes`);
     // Reset the determinism panel to just the reference until a comparison runs.
     detPanel.style.display = '';
-    diffRef.innerHTML = referenceOutput
-      .split('')
-      .map((c) => `<span class="diff-same">${c}</span>`)
-      .join('');
+    setReference(seedStream, 'First Generate (reference)');
     diffCmp.innerHTML = '<span style="color:var(--text-muted)">Click “Same Seed Again” or “Flip 1 Seed Digit”…</span>';
     diffCmpTag.textContent = 'Compared stream';
     diffVerdict.className = 'diff-verdict';
@@ -268,11 +304,20 @@ function wireExhibit2(section: HTMLElement, announce: (msg: string) => void): vo
     const result = await instantiateAndGenerate();
     currentState = result.state;
     const out = toHex(result.output);
-    renderResult(result, 'HMAC_DRBG re-run with the same seed — output is identical');
+    // Compare against the stream the seed CURRENTLY loaded produces — which is
+    // the flipped seed's stream if the last action was a flip. The verdict is
+    // the diff count either way; it is never worded ahead of the comparison.
+    const diffs = countDiff(seedStream, out);
+    renderResult(
+      result,
+      diffs === 0
+        ? 'HMAC_DRBG re-run with the same seed — output is identical'
+        : `HMAC_DRBG re-run with the same seed — ${diffs} hex digits differ`,
+    );
 
+    setReference(seedStream, 'Current seed (reference)');
     diffCmpTag.textContent = 'Same seed, re-run';
-    diffCmp.innerHTML = diffHex(referenceOutput, out);
-    const diffs = countDiff(referenceOutput, out);
+    diffCmp.innerHTML = diffHex(seedStream, out);
     diffVerdict.className = `diff-verdict ${diffs === 0 ? 'is-same' : 'is-diff'}`;
     diffVerdict.textContent = diffs === 0
       ? '✓ 0 hex digits differ — same seed → same stream, every time (this is the Deterministic in DRBG).'
@@ -289,22 +334,33 @@ function wireExhibit2(section: HTMLElement, announce: (msg: string) => void): vo
     flipped[idx] = flipped[idx]! ^ 0x01;
     lastEntropy = flipped;
 
+    // The stream produced by the seed as it stood BEFORE the flip. This is the
+    // only thing the avalanche comparison is against, and it is shown as the
+    // reference row so the highlighting has a visible baseline.
+    const beforeFlip = seedStream;
+
     const result = await instantiateAndGenerate();
     currentState = result.state;
     const out = toHex(result.output);
-    renderResult(result, 'Flipped one hex digit of the seed — the entire stream changed (avalanche)');
+    const diffs = countDiff(beforeFlip, out);
+    const pct = Math.round((diffs / Math.max(beforeFlip.length, out.length)) * 100);
+    renderResult(result, `Flipped one hex digit of the seed — ${pct}% of the stream changed (avalanche)`);
 
-    // The flipped seed is the new reference going forward, but we diff the new
-    // stream against the ORIGINAL reference so the avalanche is visible.
+    setReference(beforeFlip, 'Before the flip (reference)');
     diffCmpTag.textContent = 'One seed digit flipped';
-    diffCmp.innerHTML = diffHex(referenceOutput, out);
-    const diffs = countDiff(referenceOutput, out);
-    const pct = Math.round((diffs / Math.max(referenceOutput.length, out.length)) * 100);
+    diffCmp.innerHTML = diffHex(beforeFlip, out);
     diffVerdict.className = 'diff-verdict is-diff';
     diffVerdict.textContent =
       `~${pct}% of hex digits differ from one 1-bit seed change — the avalanche effect. Output leaks nothing about nearby seeds.`;
     // Reflect the flipped seed in the input so the learner sees what changed.
     entropyInput.value = toHex(lastEntropy);
+    renderSeedMaterial();
+    // The flipped seed is now the live seed, so the stream it produces is what
+    // "Same Seed Again" must reproduce. Leaving the pre-flip stream as the
+    // baseline made Flip → Same Seed Again print "✗ N hex digits differ
+    // (unexpected)" inside the panel whose entire subject is that the same seed
+    // reproduces the same stream.
+    seedStream = out;
   }
 
   function renderResult(

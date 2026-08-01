@@ -12,21 +12,48 @@ import { runAllTests } from '../stats/nist-tests';
 
 /**
  * A deliberately-broken generator: a linear congruential generator (LCG), the
- * same family behind Math.random(). Its low bits are highly non-random, so
- * painting the bytes reveals visible diagonal banding. This is an HONEST bad
- * example — we are showing real LCG output, not a faked pattern.
+ * same family behind Math.random(), read the way careless code reads one —
+ * from its LOW byte.
  *
- * Constants are the classic MINSTD (Park–Miller) multiplier; we take the top
- * byte of each state so the structure is visible at a glance.
+ * Constants are the classic MINSTD multiplier over a 2^32 modulus. The low k
+ * bits of any power-of-two-modulus LCG have period at most 2^k, so `s & 0xff`
+ * repeats every 64 samples here. At 64 pixels per row that makes every row of
+ * the grid identical — structure you cannot miss.
+ *
+ * This function used to take the HIGH byte, `(s >>> 24) & 0xff` — the good bits
+ * of the same generator. That stream has no measurable structure (row-to-row
+ * correlation ~0.002) and renders as snow, while the page beside it claimed
+ * "visible diagonal banding" and "your eye catches the LCG instantly". The
+ * exhibit now paints the bits that are actually broken, and the panel prints
+ * the measured correlation and the demo's own test verdicts for both streams
+ * rather than telling you what you are about to see.
  */
 function lcgBytes(n: number): Uint8Array {
   const out = new Uint8Array(n);
   let s = 1234567 >>> 0;
   for (let i = 0; i < n; i++) {
     s = (Math.imul(s, 16807) + 12345) >>> 0;
-    out[i] = (s >>> 24) & 0xff;
+    out[i] = s & 0xff;
   }
   return out;
+}
+
+/**
+ * Pearson correlation between each sample and the sample one row above it. For
+ * an unstructured stream this sits near 0; for a stream whose period divides the
+ * row width it is 1. Computed so the "you can see it" claim has a number.
+ */
+function rowCorrelation(bytes: Uint8Array, rowWidth: number): number {
+  const n = bytes.length - rowWidth;
+  if (n <= 1) return 0;
+  let sx = 0, sy = 0, sxy = 0, sxx = 0, syy = 0;
+  for (let i = 0; i < n; i++) {
+    const x = bytes[i]!;
+    const y = bytes[i + rowWidth]!;
+    sx += x; sy += y; sxy += x * y; sxx += x * x; syy += y * y;
+  }
+  const denom = Math.sqrt((n * sxx - sx * sx) * (n * syy - sy * sy));
+  return denom === 0 ? 1 : (n * sxy - sx * sy) / denom;
 }
 
 /** Paint a 64x64 canvas: one output byte per pixel as a greyscale value. */
@@ -97,11 +124,8 @@ export function buildExhibit5(announce: (msg: string) => void): HTMLElement {
 
         <div class="panel">
           <div class="panel-header"><span aria-hidden="true">📊</span> Shannon Entropy Comparison</div>
-          <p style="font-size:0.78rem;line-height:1.6;color:var(--text-muted);margin:0">
-            All three bars sit at essentially <strong style="color:var(--text-primary)">8.00 bits/byte</strong> — the
-            maximum. That is the point: good generators are <em>indistinguishable</em> here.
-            A taller bar would <strong style="color:var(--text-primary)">not</strong> mean "more secure";
-            a much <em>shorter</em> one would just flag an obviously broken generator.
+          <p id="entropy-note" style="font-size:0.78rem;line-height:1.6;color:var(--text-muted);margin:0">
+            Press <strong style="color:var(--text-primary)">Test All Three DRBGs</strong> to fill this in from the run.
           </p>
           <div class="bar-chart" id="entropy-chart" role="img" aria-label="Bar chart comparing Shannon entropy across DRBGs"></div>
         </div>
@@ -110,23 +134,29 @@ export function buildExhibit5(announce: (msg: string) => void): HTMLElement {
           <div class="panel-header"><span aria-hidden="true">🟩</span> What Random <em>Looks</em> Like</div>
           <p style="font-size:0.85rem;line-height:1.7;color:var(--text-secondary);margin:0">
             Each pixel is one output byte painted as a greyscale value (00 = black, FF = white).
-            The DRBG grid on the left is snow; the broken generator on the right —
-            a textbook <strong style="color:var(--text-primary)">linear congruential generator (LCG)</strong>,
-            the family behind <code style="font-family:var(--font-mono)">Math.random()</code> — shows
-            visible diagonal banding. Your eye catches the LCG instantly.
+            The grid on the right is a textbook
+            <strong style="color:var(--text-primary)">linear congruential generator (LCG)</strong> — the family behind
+            <code style="font-family:var(--font-mono)">Math.random()</code> — read from its
+            <strong style="color:var(--text-primary)">low byte</strong>, the way careless code reads one. Both grids
+            are painted from real byte streams. The numbers under them are measured on those exact
+            streams when you press the button above, not asserted here.
           </p>
           <div class="pixel-grids">
             <div class="pixel-cell">
               <canvas id="pixel-drbg" width="64" height="64"
-                      role="img" aria-label="64 by 64 grid of HMAC_DRBG output bytes as greyscale pixels: no visible pattern, looks like random snow"></canvas>
-              <span class="pixel-caption"><strong>HMAC_DRBG</strong> — passes "looks random"</span>
+                      role="img" aria-label="64 by 64 grid of HMAC_DRBG output bytes as greyscale pixels"></canvas>
+              <span class="pixel-caption"><strong>HMAC_DRBG</strong></span>
+              <span class="pixel-metric" id="metric-drbg" style="font-size:0.72rem;line-height:1.5;color:var(--text-muted)"></span>
             </div>
             <div class="pixel-cell">
               <canvas id="pixel-lcg" width="64" height="64"
-                      role="img" aria-label="64 by 64 grid of linear congruential generator output bytes as greyscale pixels: clear diagonal banding, obviously not random"></canvas>
-              <span class="pixel-caption"><strong>Broken LCG</strong> — visible diagonal structure</span>
+                      role="img" aria-label="64 by 64 grid of linear congruential generator low bytes as greyscale pixels"></canvas>
+              <span class="pixel-caption"><strong>LCG, low byte</strong></span>
+              <span class="pixel-metric" id="metric-lcg" style="font-size:0.72rem;line-height:1.5;color:var(--text-muted)"></span>
             </div>
           </div>
+          <p id="grid-verdict" role="status"
+             style="font-size:0.78rem;line-height:1.6;color:var(--text-secondary);margin:0.5rem 0 0"></p>
           <p style="font-size:0.78rem;line-height:1.6;color:var(--text-muted);margin:0">
             But "looks random" is a floor, not a ceiling. A backdoored generator like
             Dual_EC produces a grid that looks <em>exactly</em> as clean as HMAC_DRBG's —
@@ -139,7 +169,7 @@ export function buildExhibit5(announce: (msg: string) => void): HTMLElement {
       <div class="panel" id="stat-dualec-panel" style="display:none">
         <div class="panel-header" style="color:var(--red-corrupt)"><span aria-hidden="true">⚠️</span> Versus Dual_EC_DRBG</div>
         <p style="font-size:0.85rem;line-height:1.7;color:var(--text-secondary)">
-          Simulated Dual_EC_DRBG output also <strong style="color:var(--text-primary)">passes all four tests</strong>.
+          <span id="dualec-verdict"></span>
           Statistical tests catch broken DRBGs (like a PRNG seeded with a constant) but
           <strong style="color:var(--red-corrupt)">cannot detect a mathematically sound backdoor</strong>.
           The Dual_EC backdoor is undetectable by statistical analysis — it only helps
@@ -219,55 +249,102 @@ function wireExhibit5(section: HTMLElement, announce: (msg: string) => void): vo
       const tbody = section.querySelector<HTMLElement>('#stat-tbody')!;
       tbody.innerHTML = '';
 
+      // The Shannon Entropy row has no p-value; it reports bits/byte. Printing
+      // both in one column was how a 0.9783 meaning "7.83 bits/byte" ended up
+      // sitting next to three genuine probabilities.
+      const cell = (r: (typeof hmacTests)[number]): string =>
+        `<td class="${r.passed ? 'stat-pass' : 'stat-fail'}">
+           ${r.passed ? 'PASS' : 'FAIL'}
+           (${r.pValue !== null ? `p=${r.pValue}` : `${r.statistic.value.toFixed(2)} ${r.statistic.unit}`})
+         </td>`;
+
       for (let i = 0; i < hmacTests.length; i++) {
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td>${hmacTests[i]!.name}</td>
-          <td class="${hmacTests[i]!.passed ? 'stat-pass' : 'stat-fail'}">
-            ${hmacTests[i]!.passed ? 'PASS' : 'FAIL'} (${hmacTests[i]!.pValue})
-          </td>
-          <td class="${ctrTests[i]!.passed ? 'stat-pass' : 'stat-fail'}">
-            ${ctrTests[i]!.passed ? 'PASS' : 'FAIL'} (${ctrTests[i]!.pValue})
-          </td>
-          <td class="${hashTests[i]!.passed ? 'stat-pass' : 'stat-fail'}">
-            ${hashTests[i]!.passed ? 'PASS' : 'FAIL'} (${hashTests[i]!.pValue})
-          </td>
+          ${cell(hmacTests[i]!)}
+          ${cell(ctrTests[i]!)}
+          ${cell(hashTests[i]!)}
         `;
         tbody.appendChild(tr);
       }
 
-      // Shannon entropy bar chart
+      // Shannon entropy bar chart — bars are the measured bits/byte.
       const chart = section.querySelector<HTMLElement>('#entropy-chart')!;
       chart.innerHTML = '';
       const entropies = [
-        { label: 'HMAC_DRBG', value: hmacTests[3]!.pValue, color: 'var(--green-clean)' },
-        { label: 'CTR_DRBG', value: ctrTests[3]!.pValue, color: 'var(--blue-info)' },
-        { label: 'Hash_DRBG', value: hashTests[3]!.pValue, color: 'var(--amber-warn)' },
+        { label: 'HMAC_DRBG', bitsPerByte: hmacTests[3]!.statistic.value, color: 'var(--green-clean)' },
+        { label: 'CTR_DRBG', bitsPerByte: ctrTests[3]!.statistic.value, color: 'var(--blue-info)' },
+        { label: 'Hash_DRBG', bitsPerByte: hashTests[3]!.statistic.value, color: 'var(--amber-warn)' },
       ];
 
       for (const e of entropies) {
         const col = document.createElement('div');
         col.className = 'bar-col';
-        const heightPct = Math.min(e.value * 100, 100);
+        const heightPct = Math.min((e.bitsPerByte / 8) * 100, 100);
         col.innerHTML = `
           <div class="bar" style="height:${heightPct}%;background-color:${e.color}" role="presentation"></div>
-          <div class="bar-label">${e.label}<br>${(e.value * 8).toFixed(2)} b/B</div>
+          <div class="bar-label">${e.label}<br>${e.bitsPerByte.toFixed(2)} b/B</div>
         `;
         chart.appendChild(col);
       }
 
       // Update chart aria-label with actual values for screen readers
-      const chartLabel = entropies.map(e => `${e.label}: ${(e.value * 8).toFixed(2)} bits per byte`).join(', ');
+      const chartLabel = entropies.map(e => `${e.label}: ${e.bitsPerByte.toFixed(2)} bits per byte`).join(', ');
       chart.setAttribute('aria-label', `Shannon entropy comparison. ${chartLabel}`);
+
+      // The prose used to say "all three bars sit at essentially 8.00 bits/byte"
+      // while the labels beside it printed ~7.83. Both numbers now come from the
+      // same run, and the gap is explained instead of denied.
+      const bpb = entropies.map(e => e.bitsPerByte);
+      const lo = Math.min(...bpb);
+      const hi = Math.max(...bpb);
+      section.querySelector<HTMLElement>('#entropy-note')!.innerHTML =
+        `All three landed between <strong style="color:var(--text-primary)">${lo.toFixed(2)}</strong> and ` +
+        `<strong style="color:var(--text-primary)">${hi.toFixed(2)}</strong> bits/byte — a spread of ` +
+        `${(hi - lo).toFixed(2)}. That is the point: good generators are <em>indistinguishable</em> here. ` +
+        `The ceiling is 8.00, and none of them reaches it because ${TEST_BYTES} bytes cannot cover 256 byte ` +
+        `values evenly — the expected entropy of a <em>perfect</em> ${TEST_BYTES}-byte sample is about 7.81, ` +
+        `so this shortfall measures the sample, not the generator. A taller bar would ` +
+        `<strong style="color:var(--text-primary)">not</strong> mean "more secure"; a much <em>shorter</em> one ` +
+        `would flag an obviously broken generator.`;
 
       // Randomness pixel grids: real HMAC_DRBG bytes vs a deliberately-broken
       // LCG. Both are painted from actual byte streams — nothing is faked.
       // The grid needs 64*64 = 4096 bytes; draw a dedicated real stream so the
       // stats above keep running on their own 1024-byte samples.
+      const GRID_W = 64;
       const gridState = await hmacDrbgInstantiate(getRandomEntropy(32), getRandomEntropy(16));
-      const gridResult = await hmacDrbgGenerate(gridState, 64 * 64);
+      const gridResult = await hmacDrbgGenerate(gridState, GRID_W * GRID_W);
+      const lcgStream = lcgBytes(GRID_W * GRID_W);
       paintGrid(section.querySelector<HTMLCanvasElement>('#pixel-drbg'), gridResult.output);
-      paintGrid(section.querySelector<HTMLCanvasElement>('#pixel-lcg'), lcgBytes(64 * 64));
+      paintGrid(section.querySelector<HTMLCanvasElement>('#pixel-lcg'), lcgStream);
+
+      // Back the visual claim with numbers taken off the exact streams painted
+      // above: row-to-row correlation, and the demo's own four tests.
+      const drbgCorr = rowCorrelation(gridResult.output, GRID_W);
+      const lcgCorr = rowCorrelation(lcgStream, GRID_W);
+      const drbgGridTests = runAllTests(gridResult.output);
+      const lcgGridTests = runAllTests(lcgStream);
+      const passCount = (rs: typeof drbgGridTests): number => rs.filter(r => r.passed).length;
+      const drbgPass = passCount(drbgGridTests);
+      const lcgPass = passCount(lcgGridTests);
+
+      const metric = (corr: number, passes: number): string =>
+        `row-to-row correlation <strong style="color:var(--text-primary)">${corr.toFixed(3)}</strong> · ` +
+        `passes <strong style="color:var(--text-primary)">${passes} of 4</strong> tests above`;
+      section.querySelector<HTMLElement>('#metric-drbg')!.innerHTML = metric(drbgCorr, drbgPass);
+      section.querySelector<HTMLElement>('#metric-lcg')!.innerHTML = metric(lcgCorr, lcgPass);
+
+      const lcgIsVisiblyBroken = Math.abs(lcgCorr) > 0.5;
+      section.querySelector<HTMLElement>('#grid-verdict')!.innerHTML = lcgIsVisiblyBroken
+        ? `Measured on these two streams: the LCG's correlation of <strong style="color:var(--text-primary)">${lcgCorr.toFixed(3)}</strong> ` +
+          `against the DRBG's <strong style="color:var(--text-primary)">${drbgCorr.toFixed(3)}</strong> is the banding you can see — ` +
+          `the low byte repeats every 64 samples, which at 64 pixels per row makes every row identical. ` +
+          `It also fails ${4 - lcgPass} of the four tests, so here the eye and the statistics agree.`
+        : `Measured on these two streams: the LCG's correlation is <strong style="color:var(--text-primary)">${lcgCorr.toFixed(3)}</strong> ` +
+          `against the DRBG's <strong style="color:var(--text-primary)">${drbgCorr.toFixed(3)}</strong> — no visible structure in either. ` +
+          `Whatever this grid looks like to you, that is the number the stream actually carries.`;
 
       resultsDiv.style.display = '';
 
@@ -282,14 +359,26 @@ function wireExhibit5(section: HTMLElement, announce: (msg: string) => void): vo
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td>${test.name}</td>
-          <td>${test.pValue}</td>
+          <td>${test.pValue !== null ? `p=${test.pValue}` : `${test.statistic.value.toFixed(2)} ${test.statistic.unit}`}</td>
           <td class="${test.passed ? 'stat-pass' : 'stat-fail'}">${test.passed ? 'PASS ✓' : 'FAIL ✗'}</td>
         `;
         dualecTbody.appendChild(tr);
       }
+      const dualEcPass = dualEcTests.filter(t => t.passed).length;
+      section.querySelector<HTMLElement>('#dualec-verdict')!.innerHTML =
+        dualEcPass === dualEcTests.length
+          ? `Simulated Dual_EC_DRBG output <strong style="color:var(--text-primary)">passed all ${dualEcTests.length} tests</strong> on this run.`
+          : `Simulated Dual_EC_DRBG output passed <strong style="color:var(--text-primary)">${dualEcPass} of ${dualEcTests.length}</strong> tests on this run — with ${TEST_BYTES} bytes a genuine generator fails one occasionally, which is what a 1% threshold means.`;
       dualecPanel.style.display = '';
 
-      announce('Statistical tests complete — all DRBGs pass, including simulated Dual_EC');
+      // Announce what the run found, not what it was expected to find.
+      const allResults = [...hmacTests, ...ctrTests, ...hashTests, ...dualEcTests];
+      const failures = allResults.filter(r => !r.passed).length;
+      announce(
+        failures === 0
+          ? `Statistical tests complete — all ${allResults.length} checks passed, including simulated Dual_EC`
+          : `Statistical tests complete — ${failures} of ${allResults.length} checks failed`,
+      );
     } finally {
       runBtn.disabled = false;
       runBtn.textContent = 'Test All Three DRBGs';

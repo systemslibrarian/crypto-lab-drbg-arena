@@ -21,10 +21,10 @@ DRBG Arena demonstrates the three NIST SP 800-90A approved Deterministic Random 
 Five exhibits plus a live conformance check:
 
 1. **DRBG fundamentals and security properties** — what a DRBG is, the three constructions, backtracking vs prediction resistance, and the seed → state → output → reseed data flow.
-2. **HMAC_DRBG** — an animated *state-update* visualizer that shows the old V flowing through the one-way `HMAC(K, V)` box to fork out both the output stream and a fresh (K, V), making backtracking resistance mechanical rather than asserted; a **determinism panel** that stacks and diff-highlights "Same Seed Again" (identical stream) against a one-click "Flip 1 Seed Digit" avalanche (the entire stream changes); plus inline glossary terms for seed, entropy, nonce, and personalization string.
-3. **CTR_DRBG** — AES-256 construction with a same-entropy side-by-side against HMAC_DRBG and an inline `seedlen` glossary explaining why AES-256 needs 48 bytes (256-bit key + 128-bit block).
+2. **HMAC_DRBG** — an animated *state-update* visualizer that shows the old V flowing through the one-way `HMAC(K, V)` box to fork out both the output stream and a fresh (K, V), making backtracking resistance mechanical rather than asserted; a **determinism panel** that stacks and diff-highlights "Same Seed Again" (identical stream) against a one-click "Flip 1 Seed Digit" avalanche (the entire stream changes), with the reference row always naming what it is a baseline of; all three seed inputs — entropy, nonce, personalization — shown, because the output is a function of all of them and a hidden one makes "same seed, same stream" untestable from what is on screen; plus inline glossary terms for seed, entropy, nonce, and personalization string.
+3. **CTR_DRBG** — AES-256 construction with a same-entropy side-by-side against HMAC_DRBG, an inline `seedlen` glossary explaining why AES-256 needs 48 bytes (256-bit key + 128-bit block), a **timed comparison** that runs 40 instantiate+generate rounds of each on your press and prints which one was faster here — with an explicit note that per-call browser overhead is not the same measurement as native AES-NI throughput — and an **under-seeding disclosure**: type two hex digits and the panel states that the instantiation carries 8 bits of entropy rather than 384, instead of zero-padding it silently.
 4. **Hash_DRBG** — full three-way comparison table.
-5. **Statistical output quality** — simplified NIST SP 800-22 tests run live on all three implementations, a Shannon-entropy chart (with an explicit "taller ≠ more secure" caption), a **randomness pixel grid** contrasting real DRBG output against a deliberately-broken LCG so the eye can see what "looks random" means, and a Dual_EC_DRBG comparison — with an on-screen disclosure that the row uses OS randomness as a stand-in — showing that clean-looking output proves nothing about a hidden trapdoor.
+5. **Statistical output quality** — simplified NIST SP 800-22 tests run live on all three implementations, a Shannon-entropy chart whose caption quotes the run's own measured range and explains why 1,024 bytes cannot reach the 8.00 bits/byte ceiling, and a **randomness pixel grid** contrasting real DRBG output against the *low* byte of an LCG, whose period is exactly the grid width so every row comes out identical. Under each grid: the measured row-to-row correlation and how many of the four tests that exact stream passed. Then a Dual_EC_DRBG comparison — with an on-screen disclosure that the row uses OS randomness as a stand-in — showing that clean-looking output proves nothing about a hidden trapdoor. Every verdict on the page is the tally of what the run returned; nothing is announced in advance.
 
 ## What Can Go Wrong
 
@@ -71,8 +71,20 @@ A DRBG demo is only worth learning from if its output is provably conformant. Al
 The same vectors run three ways: in CI on every commit (`npm test`), as a **live self-check in your browser** on page load (the "Live Conformance Check" panel), and as the values displayed in that panel — one source of truth in [`src/crypto/self-check.ts`](src/crypto/self-check.ts), no drift. The GitHub Pages deploy is gated on the test job: if a vector ever fails to match, the site does not ship.
 
 ```bash
-npm test        # run the NIST CAVP known-answer tests + property tests
+npm test        # NIST CAVP known-answer tests + property tests + exhibit-claim tests
+npm run test:a11y   # axe WCAG A/AA gate + Playwright behaviour gates on the exhibits
 ```
+
+The CAVP vectors gate the cryptography. A second class of gate covers what the *page* says
+about it, because every defect found in the last review was a claim the primitives underneath
+had no opinion on. `src/stats/nist-tests.test.ts` pins the broken-generator grid to its
+measured properties (the low-byte LCG's row correlation is 1.0 and it fails all four tests;
+the high byte it used to paint has correlation ~0.002 and passes all four), and pins the
+~7.81 bits/byte a perfect 1,024-byte sample averages, which is the number the entropy caption
+now explains rather than rounding to 8.00. `e2e/exhibits.spec.ts` drives the page: flip a seed
+digit then press Same Seed Again and the determinism verdict must still read zero differences;
+under-seed CTR_DRBG and the panel must say how many bits it really has; press Compare and the
+speed row must contain a measured millisecond figure.
 
 ---
 

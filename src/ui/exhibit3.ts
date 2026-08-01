@@ -22,8 +22,10 @@ export function buildExhibit3(announce: (msg: string) => void): HTMLElement {
           Based on <strong style="color:var(--text-primary)">AES-256 in counter mode</strong>.
           Internal state: <strong style="color:var(--text-primary)">V</strong> (128-bit counter block) and
           <strong style="color:var(--text-primary)">Key</strong> (256-bit AES key). Both updated after
-          each Generate call. Faster than HMAC_DRBG on hardware with AES-NI instructions.
-          Required in many U.S. government and DoD environments.
+          each Generate call. Required in many U.S. government and DoD environments.
+          It is usually the faster of the two on hardware with AES-NI instructions —
+          <strong style="color:var(--text-primary)">Compare with HMAC_DRBG</strong> below times both in
+          this browser and prints what it actually measured, which is not the same claim.
         </p>
       </div>
 
@@ -52,6 +54,8 @@ export function buildExhibit3(announce: (msg: string) => void): HTMLElement {
       <div class="panel" id="ctr-output-panel" style="display:none">
         <div class="panel-header"><span aria-hidden="true">📤</span> CTR_DRBG Output</div>
         <div class="hex-output" id="ctr-output" role="log" aria-live="polite" aria-label="CTR DRBG hex output"></div>
+        <div id="ctr-seed-note" role="status"
+             style="font-size:0.8rem;line-height:1.7;margin-top:0.6rem"></div>
         <div style="display:flex;flex-direction:column;gap:0.5rem;margin-top:0.5rem">
           <div class="state-row"><span class="state-label">Key:</span><span class="state-value" id="ctr-state-key"></span></div>
           <div class="state-row"><span class="state-label">V:</span><span class="state-value" id="ctr-state-v"></span></div>
@@ -74,6 +78,8 @@ export function buildExhibit3(announce: (msg: string) => void): HTMLElement {
             <div class="hex-output" id="ctr-cmp-hmac" role="log" aria-live="polite" aria-label="HMAC DRBG comparison output"></div>
           </div>
         </div>
+        <div id="ctr-timing" role="status"
+             style="font-size:0.8rem;line-height:1.7;color:var(--text-secondary);margin-top:0.75rem"></div>
       </div>
 
       <div class="panel">
@@ -85,7 +91,7 @@ export function buildExhibit3(announce: (msg: string) => void): HTMLElement {
             </thead>
             <tbody>
               <tr><td>Primitive</td><td>HMAC-SHA-256</td><td>AES-256-CTR</td></tr>
-              <tr><td>Speed</td><td>Medium</td><td>Fast (AES-NI)</td></tr>
+              <tr><td>Measured here</td><td id="cmp-speed-hmac">— press Compare</td><td id="cmp-speed-ctr">— press Compare</td></tr>
               <tr><td>FIPS 140-2/3</td><td>✓</td><td>✓</td></tr>
               <tr><td>Use when</td><td>General use</td><td>AES-NI available</td></tr>
             </tbody>
@@ -119,7 +125,14 @@ function wireExhibit3(section: HTMLElement, announce: (msg: string) => void): vo
   const outputEl = section.querySelector<HTMLElement>('#ctr-output')!;
   const comparisonPanel = section.querySelector<HTMLElement>('#ctr-comparison-panel')!;
 
+  const seedNote = section.querySelector<HTMLElement>('#ctr-seed-note')!;
+  const timingEl = section.querySelector<HTMLElement>('#ctr-timing')!;
+
+  const SEEDLEN = 48; // AES-256 CTR_DRBG seedlen, in bytes
+
   let lastEntropy: Uint8Array | null = null;
+  /** How many bytes the learner actually supplied, before padding. */
+  let lastSuppliedBytes = SEEDLEN;
 
   bytesSlider.addEventListener('input', () => {
     bytesDisplay.textContent = bytesSlider.value;
@@ -130,12 +143,34 @@ function wireExhibit3(section: HTMLElement, announce: (msg: string) => void): vo
     const val = entropyInput.value.trim();
     if (val.length > 0 && /^[0-9a-fA-F]+$/.test(val)) {
       const raw = fromHex(val);
-      // Pad or trim to 48 bytes (seedlen for AES-256)
-      const ent = new Uint8Array(48);
-      ent.set(raw.slice(0, 48));
+      // Pad or trim to seedlen. The padding used to be silent, so typing "ff"
+      // produced a full-looking instantiation carrying 8 bits of entropy.
+      lastSuppliedBytes = Math.min(raw.length, SEEDLEN);
+      const ent = new Uint8Array(SEEDLEN);
+      ent.set(raw.slice(0, SEEDLEN));
       return ent;
     }
-    return getRandomEntropy(48);
+    lastSuppliedBytes = SEEDLEN;
+    return getRandomEntropy(SEEDLEN);
+  }
+
+  /** State what the seed the run actually used is worth, from the run's own numbers. */
+  function renderSeedNote(): void {
+    const supplied = lastSuppliedBytes;
+    if (supplied >= SEEDLEN) {
+      seedNote.style.color = 'var(--text-muted)';
+      seedNote.textContent =
+        `Seed: ${SEEDLEN} bytes (${SEEDLEN * 8} bits), the full AES-256 seedlen. Nothing was padded.`;
+      return;
+    }
+    const padded = SEEDLEN - supplied;
+    seedNote.style.color = 'var(--amber-warn)';
+    seedNote.innerHTML =
+      `<strong>Under-seeded:</strong> you supplied <strong>${supplied} byte${supplied === 1 ? '' : 's'}</strong> ` +
+      `(${supplied * 8} bits). CTR_DRBG needs ${SEEDLEN} bytes, so the remaining ${padded} were zero-filled. ` +
+      `The output below looks like ${SEEDLEN * 8}-bit-strength material and carries at most ` +
+      `<strong>${supplied * 8} bits</strong> of entropy — an attacker searches 2<sup>${supplied * 8}</sup>, not ` +
+      `2<sup>${SEEDLEN * 8}</sup>. SP 800-90A forbids this; the instantiate call would reject it.`;
   }
 
   async function doGenerate(reuse: boolean): Promise<void> {
@@ -150,6 +185,7 @@ function wireExhibit3(section: HTMLElement, announce: (msg: string) => void): vo
 
     outputPanel.style.display = '';
     outputEl.textContent = toHex(result.output);
+    renderSeedNote();
     section.querySelector<HTMLElement>('#ctr-state-key')!.textContent = result.newKey;
     section.querySelector<HTMLElement>('#ctr-state-v')!.textContent = result.newV;
 
@@ -165,20 +201,55 @@ function wireExhibit3(section: HTMLElement, announce: (msg: string) => void): vo
   compareBtn.addEventListener('click', async () => {
     if (!lastEntropy) return;
     const numBytes = parseInt(bytesSlider.value, 10);
+    const entropy = lastEntropy;
+    // Both constructions already run on this one click, so the speed row can be
+    // a measurement instead of an assertion. Repeat enough times that the
+    // figure is above timer noise, and report per-instantiate-plus-generate.
+    const REPS = 40;
 
-    // CTR_DRBG
-    const ctrState = await ctrDrbgInstantiate(lastEntropy);
+    async function timeIt(run: () => Promise<unknown>): Promise<number> {
+      await run(); // warm up: first call pays for WebCrypto key import
+      const t0 = performance.now();
+      for (let i = 0; i < REPS; i++) await run();
+      return (performance.now() - t0) / REPS;
+    }
+
+    const hmacEntropy = entropy.slice(0, 32);
+    const ctrMs = await timeIt(async () => {
+      const st = await ctrDrbgInstantiate(entropy);
+      await ctrDrbgGenerate(st, numBytes);
+    });
+    const hmacMs = await timeIt(async () => {
+      const st = await hmacDrbgInstantiate(hmacEntropy);
+      await hmacDrbgGenerate(st, numBytes);
+    });
+
+    // One more of each, kept for display.
+    const ctrState = await ctrDrbgInstantiate(entropy);
     const ctrResult = await ctrDrbgGenerate(ctrState, numBytes);
-
-    // HMAC_DRBG — using same entropy (padded/trimmed as needed)
-    const hmacEntropy = lastEntropy.slice(0, 32);
     const hmacState = await hmacDrbgInstantiate(hmacEntropy);
     const hmacResult = await hmacDrbgGenerate(hmacState, numBytes);
 
     comparisonPanel.style.display = '';
     section.querySelector<HTMLElement>('#ctr-cmp-output')!.textContent = toHex(ctrResult.output);
     section.querySelector<HTMLElement>('#ctr-cmp-hmac')!.textContent = toHex(hmacResult.output);
-    announce('Side-by-side comparison generated');
+
+    const fmt = (ms: number): string => `${ms.toFixed(3)} ms`;
+    section.querySelector<HTMLElement>('#cmp-speed-ctr')!.textContent = fmt(ctrMs);
+    section.querySelector<HTMLElement>('#cmp-speed-hmac')!.textContent = fmt(hmacMs);
+
+    const faster = ctrMs < hmacMs ? 'CTR_DRBG' : 'HMAC_DRBG';
+    const ratio = Math.max(ctrMs, hmacMs) / Math.min(ctrMs, hmacMs);
+    timingEl.innerHTML =
+      `<strong>Measured just now, ${REPS} instantiate+generate rounds each of ${numBytes} bytes:</strong> ` +
+      `CTR_DRBG ${fmt(ctrMs)}, HMAC_DRBG ${fmt(hmacMs)} — <strong>${faster} is ${ratio.toFixed(2)}× faster here</strong>. ` +
+      `Whichever way it landed, read it narrowly: this times two WebCrypto calls through a JavaScript wrapper on ` +
+      `${numBytes}-byte requests, dominated by per-call overhead rather than by throughput, and it says nothing about ` +
+      `whether this machine has AES-NI. The "CTR_DRBG is faster with AES-NI" claim is about bulk native throughput, ` +
+      `which no browser benchmark on this page can establish.`;
+    announce(
+      `Side-by-side comparison generated. Measured ${faster} ${ratio.toFixed(2)} times faster in this browser.`,
+    );
   });
 
   copyBtn.addEventListener('click', () => {

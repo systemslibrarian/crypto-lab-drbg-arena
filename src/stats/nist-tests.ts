@@ -6,7 +6,18 @@
 export interface StatTestResult {
   name: string;
   passed: boolean;
-  pValue: number;
+  /**
+   * The p-value, for the three tests that have one.
+   *
+   * `null` for Shannon Entropy, which is not a hypothesis test and has no
+   * p-value. Its normalized entropy used to be written into this field and
+   * printed in the same column as three real p-values, so a 0.9783 that meant
+   * "7.83 bits per byte" sat next to numbers that meant "probability of a
+   * result this extreme under the null". Read `statistic` for that test.
+   */
+  pValue: number | null;
+  /** The test's own measured quantity, with the unit it is measured in. */
+  statistic: { value: number; unit: string };
   description: string;
 }
 
@@ -69,6 +80,7 @@ export function frequencyTest(bytes: Uint8Array): StatTestResult {
     name: 'Frequency (Monobit)',
     passed: pValue >= 0.01,
     pValue: Math.round(pValue * 10000) / 10000,
+    statistic: { value: Math.round(sObs * 10000) / 10000, unit: 's_obs' },
     description: `Proportion of 1s vs 0s. Sum=${sum}, n=${n}. ${pValue >= 0.01 ? 'Bits are balanced.' : 'Significant imbalance detected.'}`,
   };
 }
@@ -89,6 +101,7 @@ export function runsTest(bytes: Uint8Array): StatTestResult {
       name: 'Runs',
       passed: false,
       pValue: 0,
+      statistic: { value: Math.round(pi * 10000) / 10000, unit: 'pi' },
       description: 'Failed prerequisite: bit frequency too imbalanced for runs test.',
     };
   }
@@ -107,6 +120,7 @@ export function runsTest(bytes: Uint8Array): StatTestResult {
     name: 'Runs',
     passed: pValue >= 0.01,
     pValue: Math.round(pValue * 10000) / 10000,
+    statistic: { value: runs, unit: 'runs' },
     description: `Runs of consecutive bits: ${runs}. ${pValue >= 0.01 ? 'Run lengths are normal.' : 'Abnormal run pattern.'}`,
   };
 }
@@ -168,6 +182,7 @@ export function longestRunTest(bytes: Uint8Array): StatTestResult {
     name: 'Longest Run of Ones',
     passed: pValue >= 0.01,
     pValue: Math.round(pValue * 10000) / 10000,
+    statistic: { value: Math.round(chiSq * 10000) / 10000, unit: 'chi-squared' },
     description: `Longest run of 1s: ${maxRun} bits. Blocks: ${numBlocks}. ${pValue >= 0.01 ? 'Run lengths are within expected range.' : 'Unusually long or short runs.'}`,
   };
 }
@@ -194,12 +209,13 @@ export function shannonEntropyTest(bytes: Uint8Array): StatTestResult {
 
   // For 1024 bytes of true random data, expected entropy ~ 7.81+
   const passed = entropy >= 7.0;
-  const normalized = entropy / 8.0;
 
   return {
     name: 'Shannon Entropy',
     passed,
-    pValue: Math.round(normalized * 10000) / 10000,
+    // Not a hypothesis test: there is no p-value to report here.
+    pValue: null,
+    statistic: { value: Math.round(entropy * 10000) / 10000, unit: 'bits/byte' },
     description: `Entropy: ${entropy.toFixed(4)} bits/byte (max 8.0). ${passed ? 'Good randomness quality.' : 'Low entropy — poor randomness.'}`,
   };
 }
