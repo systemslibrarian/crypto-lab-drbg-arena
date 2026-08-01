@@ -39,6 +39,19 @@ function erfc(x: number): number {
 }
 
 /**
+ * Upper-tail probability P(X > x) of a chi-squared distribution with 3 degrees
+ * of freedom: erfc(sqrt(x/2)) + sqrt(2x/pi) * exp(-x/2).
+ *
+ * Only even degrees of freedom have an elementary closed form (k=2 gives
+ * exp(-x/2), k=4 gives exp(-x/2)(1 + x/2)); odd df need erfc, which is why this
+ * reuses the approximation above.
+ */
+function chiSquareTail3df(x: number): number {
+  if (x <= 0) return 1;
+  return erfc(Math.sqrt(x / 2)) + Math.sqrt((2 * x) / Math.PI) * Math.exp(-x / 2);
+}
+
+/**
  * Test 1: Frequency (Monobit) Test — SP 800-22 Section 2.1
  * Checks whether the proportion of 0s and 1s is approximately 50/50.
  */
@@ -145,8 +158,11 @@ export function longestRunTest(bytes: Uint8Array): StatTestResult {
     }
   }
 
-  // Approximate p-value from chi-squared with 3 df
-  const pValue = Math.exp(-chiSq / 2);
+  // Four categories, so the statistic has 3 degrees of freedom. The upper-tail
+  // probability P(X > x) for 3 df has the closed form
+  //   erfc(sqrt(x/2)) + sqrt(2x/pi) * exp(-x/2)
+  // (exp(-x/2) alone is the 2-df tail, which would be the wrong distribution here).
+  const pValue = chiSquareTail3df(chiSq);
 
   return {
     name: 'Longest Run of Ones',
