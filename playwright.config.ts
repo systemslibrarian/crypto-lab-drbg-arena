@@ -26,7 +26,11 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `npm run preview -- --port ${PORT} --strictPort`,
+    // Build before serving. `vite preview` only serves whatever already sits in
+    // dist/, so without this the suite can pass against a stale bundle — even one
+    // built before a source change that no longer compiles. Building here makes a
+    // failed build abort the run instead of silently going green.
+    command: `npm run build && npm run preview -- --port ${PORT} --strictPort`,
     port: PORT,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
