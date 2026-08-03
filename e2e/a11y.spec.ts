@@ -46,9 +46,17 @@ async function scan(page: Page): Promise<void> {
 }
 
 async function runSuite(page: Page): Promise<void> {
+  await runExhibit6(page);
   await revealInline(page);
   await neutralizeMotion(page);
   await scan(page);
+}
+
+// Exhibit 6 renders its tables and byte diffs only after a run, and an empty
+// <tbody> is not the DOM that ships to a learner. Populate it before scanning.
+async function runExhibit6(page: Page): Promise<void> {
+  await page.locator('#compromise-run').click();
+  await expect(page.locator('#compromise-rows tr')).toHaveCount(4);
 }
 
 test('no WCAG A/AA violations in dark theme', async ({ page }) => {

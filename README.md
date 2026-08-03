@@ -18,13 +18,15 @@ DRBG Arena demonstrates the three NIST SP 800-90A approved Deterministic Random 
 
 **[systemslibrarian.github.io/crypto-lab-drbg-arena](https://systemslibrarian.github.io/crypto-lab-drbg-arena/)**
 
-Five exhibits plus a live conformance check:
+Six exhibits plus a live conformance check:
 
 1. **DRBG fundamentals and security properties** — what a DRBG is, the three constructions, backtracking vs prediction resistance, and the seed → state → output → reseed data flow.
 2. **HMAC_DRBG** — an animated *state-update* visualizer that shows the old V flowing through the one-way `HMAC(K, V)` box to fork out both the output stream and a fresh (K, V), making backtracking resistance mechanical rather than asserted; a **determinism panel** that stacks and diff-highlights "Same Seed Again" (identical stream) against a one-click "Flip 1 Seed Digit" avalanche (the entire stream changes), with the reference row always naming what it is a baseline of; all three seed inputs — entropy, nonce, personalization — shown, because the output is a function of all of them and a hidden one makes "same seed, same stream" untestable from what is on screen; plus inline glossary terms for seed, entropy, nonce, and personalization string.
 3. **CTR_DRBG** — AES-256 construction with a same-entropy side-by-side against HMAC_DRBG, an inline `seedlen` glossary explaining why AES-256 needs 48 bytes (256-bit key + 128-bit block), a **timed comparison** that runs 40 instantiate+generate rounds of each on your press and prints which one was faster here — with an explicit note that per-call browser overhead is not the same measurement as native AES-NI throughput — and an **under-seeding disclosure**: type two hex digits and the panel states that the instantiation carries 8 bits of entropy rather than 384, instead of zero-padding it silently.
 4. **Hash_DRBG** — full three-way comparison table.
 5. **Statistical output quality** — simplified NIST SP 800-22 tests run live on all three implementations, a Shannon-entropy chart whose caption quotes the run's own measured range and explains why 1,024 bytes cannot reach the 8.00 bits/byte ceiling, and a **randomness pixel grid** contrasting real DRBG output against the *low* byte of an LCG, whose period is exactly the grid width so every row comes out identical. Under each grid: the measured row-to-row correlation and how many of the four tests that exact stream passed. Then a Dual_EC_DRBG comparison — with an on-screen disclosure that the row uses OS randomness as a stand-in — showing that clean-looking output proves nothing about a hidden trapdoor. Every verdict on the page is the tally of what the run returned; nothing is announced in advance.
+
+6. **Steal the state** — the page's strongest claim, made falsifiable. Exhibit 2 says in prose that an attacker who steals the internal state cannot reconstruct earlier output. Here you mount the theft. Two generators are seeded from the *same* entropy: the approved HMAC_DRBG, and **CTR-no-update** — the approved CTR_DRBG with exactly one line deleted, the `CTR_DRBG_Update` call after Generate. Both emit three 32-byte rounds; the state is stolen after round 2, exfiltrated as hex and rebuilt on the attacker's side; four attacks then run from those bytes alone, each scored byte-for-byte against what really happened. CTR-no-update's counter steps backwards and returns **32/32 bytes of both earlier rounds**; HMAC_DRBG returns nothing above the chance rate. The defective generator is the point: it is the positive control that proves the experiment can *see* a broken past, so "HMAC_DRBG gave up nothing" is a measurement rather than a restatement. The third row shows both generators handing over the *next* round exactly — prediction resistance is a separate property — and the fourth shows a reseed from fresh entropy locking both attackers out. Every verdict is a pure function of the match count and never sees which generator produced the attempt.
 
 ## What Can Go Wrong
 
@@ -84,7 +86,12 @@ the high byte it used to paint has correlation ~0.002 and passes all four), and 
 now explains rather than rounding to 8.00. `e2e/exhibits.spec.ts` drives the page: flip a seed
 digit then press Same Seed Again and the determinism verdict must still read zero differences;
 under-seed CTR_DRBG and the panel must say how many bits it really has; press Compare and the
-speed row must contain a measured millisecond figure.
+speed row must contain a measured millisecond figure; and Exhibit 6's four attacks are pinned
+from a fixed seed on **both** sides — the control must surrender 32/32 past bytes and
+HMAC_DRBG must surrender no more than 3, because a blind experiment would pass the second
+assertion while failing the first. `src/crypto/compromise.test.ts` additionally pins the
+verdict function to the match counts alone and pins `summarize` to refuse a pass when the
+control also looks safe ("inconclusive, not a pass").
 
 ---
 

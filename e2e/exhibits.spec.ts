@@ -100,3 +100,74 @@ test('the broken-generator grid backs its visual claim with measured numbers', a
   const note = await page.locator('#entropy-note').textContent();
   expect(note).toMatch(/between 7\.\d\d and 7\.\d\d bits\/byte/);
 });
+
+// ── Exhibit 6 — steal the state ────────────────────────────────────────────
+// Exhibit 2 asserts backtracking resistance in prose. Exhibit 6 measures it,
+// against a positive control that is supposed to fail. These specs pin both
+// sides: if the control ever stopped surrendering its past, the experiment
+// would be blind and the "HMAC_DRBG gave up nothing" verdict would mean
+// nothing — so the control's failure is asserted as hard as the pass.
+
+// 48 bytes, fixed, so every number below is exact rather than probabilistic.
+const PINNED_SEED =
+  '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f';
+
+async function runCompromise(page: Page): Promise<void> {
+  await open(page);
+  await page.locator('#compromise-entropy').fill(PINNED_SEED);
+  await page.locator('#compromise-run').click();
+  await expect(page.locator('#compromise-rows tr')).toHaveCount(4);
+}
+
+test('the defective control surrenders its entire past — the experiment can see a failure', async ({ page }) => {
+  await runCompromise(page);
+  await expect(page.locator('#compromise-cell-past-1-noupdate')).toContainText('32/32 bytes — RECOVERED');
+  await expect(page.locator('#compromise-cell-past-2-noupdate')).toContainText('32/32 bytes — RECOVERED');
+  // And the byte diff shows it: every byte green, none amber.
+  await expect(page.locator('#compromise-diff-noupdate .diff-same')).toHaveCount(32);
+  await expect(page.locator('#compromise-diff-noupdate .diff-diff')).toHaveCount(0);
+});
+
+test('HMAC_DRBG gives up no past output under the same theft', async ({ page }) => {
+  await runCompromise(page);
+  await expect(page.locator('#compromise-cell-past-1-hmac')).toContainText('failed');
+  await expect(page.locator('#compromise-cell-past-2-hmac')).toContainText('failed');
+  await expect(page.locator('#compromise-cell-past-1-hmac')).not.toContainText('RECOVERED');
+  // The verdict must agree with the diff rendered beneath it: chance-level only.
+  const recovered = await page.locator('#compromise-diff-hmac .diff-same').count();
+  expect(recovered).toBeLessThanOrEqual(3);
+});
+
+test('both generators hand over the NEXT round — prediction resistance is not claimed', async ({ page }) => {
+  await runCompromise(page);
+  await expect(page.locator('#compromise-cell-future-3-hmac')).toContainText('32/32 bytes — RECOVERED');
+  await expect(page.locator('#compromise-cell-future-3-noupdate')).toContainText('32/32 bytes — RECOVERED');
+});
+
+test('a reseed from fresh entropy locks both attackers out', async ({ page }) => {
+  await runCompromise(page);
+  await expect(page.locator('#compromise-cell-future-3-reseeded-hmac')).toContainText('failed');
+  await expect(page.locator('#compromise-cell-future-3-reseeded-noupdate')).toContainText('failed');
+});
+
+test('the headline is written from the run, and names the control', async ({ page }) => {
+  await runCompromise(page);
+  const headline = page.locator('#compromise-headline');
+  await expect(headline).toContainText('measured, not assumed');
+  await expect(headline).toContainText('rewinds CTR-no-update completely');
+  await expect(headline).toContainText('neither provides prediction resistance');
+  await expect(headline).toContainText('both attackers were locked out');
+  await expect(headline).not.toContainText('inconclusive');
+  await expect(headline).not.toContainText('contradicts SP 800-90A');
+});
+
+test('the run is deterministic in the seed the learner supplies', async ({ page }) => {
+  await runCompromise(page);
+  const first = await page.locator('#compromise-stolen-hmac').innerText();
+  await page.locator('#compromise-run').click();
+  await expect(page.locator('#compromise-stolen-hmac')).toHaveText(first);
+  // A different seed must move the stolen state, or nothing here is seed-driven.
+  await page.locator('#compromise-entropy').fill('ff' + PINNED_SEED.slice(2));
+  await page.locator('#compromise-run').click();
+  await expect(page.locator('#compromise-stolen-hmac')).not.toHaveText(first);
+});

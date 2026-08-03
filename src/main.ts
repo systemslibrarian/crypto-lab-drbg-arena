@@ -1,6 +1,6 @@
 /**
  * DRBG Arena — Main Entry
- * Initializes the five-exhibit demo with theme toggle and accessibility.
+ * Initializes the six-exhibit demo with theme toggle and accessibility.
  */
 
 import './style.css';
@@ -10,6 +10,7 @@ import { buildExhibit2 } from './ui/exhibit2';
 import { buildExhibit3 } from './ui/exhibit3';
 import { buildExhibit4 } from './ui/exhibit4';
 import { buildExhibit5 } from './ui/exhibit5';
+import { buildExhibit6 } from './ui/exhibit6';
 
 function announce(message: string): void {
   const el = document.getElementById('sr-announcer');
@@ -71,7 +72,7 @@ function initUI(): void {
   `;
   main.appendChild(intro);
 
-  // Build all five exhibits. The conformance panel sits right after the
+  // Build all six exhibits. The conformance panel sits right after the
   // fundamentals so the learner meets the proof before exploring the demos.
   main.appendChild(buildExhibit1());
   main.appendChild(buildConformancePanel(announce));
@@ -79,6 +80,7 @@ function initUI(): void {
   main.appendChild(buildExhibit3(announce));
   main.appendChild(buildExhibit4(announce));
   main.appendChild(buildExhibit5(announce));
+  main.appendChild(buildExhibit6(announce));
 
   app.appendChild(main);
 }
