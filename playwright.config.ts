@@ -6,7 +6,7 @@ import { defineConfig, devices } from '@playwright/test';
  * single Chromium project in the dark (default) color scheme.
  */
 
-const PORT = 4222;
+const PORT = 4628;
 const BASE = '/crypto-lab-drbg-arena/';
 
 export default defineConfig({
