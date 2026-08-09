@@ -53,7 +53,7 @@ export function buildExhibit3(announce: (msg: string) => void): HTMLElement {
 
       <div class="panel" id="ctr-output-panel" style="display:none">
         <div class="panel-header"><span aria-hidden="true">📤</span> CTR_DRBG Output</div>
-        <div class="hex-output" id="ctr-output" role="log" aria-live="polite" aria-label="CTR DRBG hex output"></div>
+        <div class="hex-output" tabindex="0" id="ctr-output" role="log" aria-live="polite" aria-label="CTR DRBG hex output"></div>
         <div id="ctr-seed-note" role="status"
              style="font-size:0.8rem;line-height:1.7;margin-top:0.6rem"></div>
         <div style="display:flex;flex-direction:column;gap:0.5rem;margin-top:0.5rem">
@@ -71,11 +71,11 @@ export function buildExhibit3(announce: (msg: string) => void): HTMLElement {
         <div class="two-col">
           <div>
             <div style="font-family:var(--font-mono);font-size:0.75rem;color:var(--green-clean);margin-bottom:0.25rem">CTR_DRBG</div>
-            <div class="hex-output" id="ctr-cmp-output" role="log" aria-live="polite" aria-label="CTR DRBG comparison output"></div>
+            <div class="hex-output" tabindex="0" id="ctr-cmp-output" role="log" aria-live="polite" aria-label="CTR DRBG comparison output"></div>
           </div>
           <div>
             <div style="font-family:var(--font-mono);font-size:0.75rem;color:var(--green-clean);margin-bottom:0.25rem">HMAC_DRBG</div>
-            <div class="hex-output" id="ctr-cmp-hmac" role="log" aria-live="polite" aria-label="HMAC DRBG comparison output"></div>
+            <div class="hex-output" tabindex="0" id="ctr-cmp-hmac" role="log" aria-live="polite" aria-label="HMAC DRBG comparison output"></div>
           </div>
         </div>
         <div id="ctr-timing" role="status"
@@ -85,7 +85,7 @@ export function buildExhibit3(announce: (msg: string) => void): HTMLElement {
       <div class="panel">
         <div class="panel-header"><span aria-hidden="true">📊</span> Comparison</div>
         <div style="overflow-x:auto">
-          <table class="cmp-table" aria-label="HMAC DRBG vs CTR DRBG comparison">
+          <table tabindex="0" class="cmp-table" aria-label="HMAC DRBG vs CTR DRBG comparison">
             <thead>
               <tr><th scope="col">Property</th><th scope="col">HMAC_DRBG</th><th scope="col">CTR_DRBG</th></tr>
             </thead>

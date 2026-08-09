@@ -84,7 +84,7 @@ export function buildExhibit2(announce: (msg: string) => void): HTMLElement {
 
       <div class="panel" id="hmac-output-panel" style="display:none">
         <div class="panel-header"><span aria-hidden="true">📤</span> Output</div>
-        <div class="hex-output" id="hmac-output" role="log" aria-live="polite" aria-label="HMAC DRBG hex output"></div>
+        <div class="hex-output" tabindex="0" id="hmac-output" role="log" aria-live="polite" aria-label="HMAC DRBG hex output"></div>
         <p style="font-size:0.78rem;line-height:1.6;color:var(--text-muted);margin:0.6rem 0 0.35rem">
           SP 800-90A seeds from <em>three</em> inputs, not one. All three are shown, because the
           output is a function of all of them — a hidden input would make "same seed, same

@@ -146,7 +146,13 @@
     else dedupeBanner();
   })();
 </script>
-    <div id="app" aria-label="DRBG Arena — NIST DRBG Educational Demo"></div>
+    <!-- No aria-label here. A bare <div> maps to role="generic", on which
+         aria-label is PROHIBITED and silently discarded — it named nothing,
+         and axe files that under `incomplete` rather than `violations`, so a
+         violations-only gate could never report it. The page is named by its
+         <title> and structured by the <main id="main-content"> that main.ts
+         mounts inside this div. -->
+    <div id="app"></div>
     <div id="sr-announcer" aria-live="assertive" aria-atomic="true" class="sr-only"></div>
     <footer style="text-align:center; padding: 1.5rem; font-size: 0.85rem; color: var(--text-muted); margin-top: 2rem;">
       <div style="margin-bottom: 0.75rem;">

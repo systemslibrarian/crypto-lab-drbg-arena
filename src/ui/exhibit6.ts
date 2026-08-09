@@ -78,7 +78,7 @@ export function buildExhibit6(announce: (msg: string) => void): HTMLElement {
       <div class="panel" id="compromise-results-panel" style="display:none">
         <div class="panel-header"><span aria-hidden="true">📊</span> Four attacks, from the stolen bytes alone</div>
         <div style="overflow-x:auto">
-          <table class="cmp-table" id="compromise-results" aria-label="Bytes the attacker recovered from each generator, per attack">
+          <table tabindex="0" class="cmp-table" id="compromise-results" aria-label="Bytes the attacker recovered from each generator, per attack">
             <thead>
               <tr>
                 <th scope="col">Attack from the stolen state</th>

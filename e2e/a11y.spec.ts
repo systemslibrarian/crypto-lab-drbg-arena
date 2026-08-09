@@ -1,72 +1,53 @@
-import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
+import { boot, driveAllStates, NARROW, reportCollected, watchPageErrors } from './gate';
 
 /**
- * WCAG regression gate. Deploys are already gated on the NIST CAVP vectors;
- * this gates them on accessibility the same way. Scans the full page in both
- * themes with every collapsible / display:none region revealed.
+ * WCAG A/AA regression gate.
  *
- * This lab has no <details>. Instead the five exhibits reveal panels by
- * clearing an inline `display:none` on button click (output/state/comparison/
- * results/Dual_EC panels). We reveal all of them up front so their contents are
- * scanned, and neutralize animations/transitions so nothing is scanned mid-flight.
+ * The lab is driven along everything it teaches: the arrival state, where all
+ * eleven output panels are absent and eight controls are locked; the skip link
+ * focused; the CAVP conformance check; glossary disclosures opened through their
+ * summaries; HMAC_DRBG generated at its maximum byte length (which is what makes
+ * its `role="log"` output region overflow at all), then re-run on the same seed
+ * for the identical-stream diff, then one seed digit flipped for the avalanche
+ * diff, then reseeded, then copied — including the 1500ms confirmation flash;
+ * CTR_DRBG from full-length entropy and then UNDER-SEEDED, which is the only
+ * state on the page that paints the amber warning ink as prose, then compared
+ * against HMAC with measured timings; Hash_DRBG on both hash functions, since
+ * SHA-512 is the only route to the longer seedlen; every statistical battery and
+ * the Dual_EC panel; and the state-compromise run with both byte diffs. Every
+ * one of those states is scanned, in both themes, at desktop and phone width.
+ *
+ * Clipboard permission is granted because the three copy buttons call
+ * `navigator.clipboard.writeText` with no `.catch()`: without the grant the
+ * promise rejects, nothing changes on screen, and the drive would be asserting
+ * against a state the code never reached.
+ *
+ * See `gate.ts` for why nothing is injected into the page (this lab animates
+ * `<body>` itself, forever), why no panel is force-revealed, why the lab's
+ * defaults are asserted rather than assumed, and why `violations` is not the
+ * whole oracle.
  */
 
-const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
+for (const theme of ['dark', 'light'] as const) {
+  test(`no WCAG A/AA violations in ${theme} theme`, async ({ page, context }) => {
+    test.setTimeout(900_000);
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    const errors = watchPageErrors(page);
+    await boot(page, theme);
+    await driveAllStates(page, theme);
+    expect(errors, errors.join('\n')).toEqual([]);
+    reportCollected();
+  });
 
-async function neutralizeMotion(page: Page): Promise<void> {
-  await page.addStyleTag({
-    content:
-      '*, *::before, *::after { animation: none !important; transition: none !important; }\n' +
-      'body { animation: none !important; }',
+  test(`no WCAG A/AA violations in ${theme} theme at 380px`, async ({ page, context }) => {
+    test.setTimeout(900_000);
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    const errors = watchPageErrors(page);
+    await page.setViewportSize(NARROW);
+    await boot(page, theme);
+    await driveAllStates(page, `${theme} @380px`);
+    expect(errors, errors.join('\n')).toEqual([]);
+    reportCollected();
   });
 }
-
-async function revealInline(page: Page): Promise<void> {
-  await page.evaluate(() => {
-    for (const details of document.querySelectorAll('details')) {
-      (details as HTMLDetailsElement).open = true;
-    }
-    // Reveal every inline display:none region (the exhibit result panels).
-    for (const el of document.querySelectorAll<HTMLElement>('[style*="display"]')) {
-      if (el.style && el.style.display === 'none') el.style.display = '';
-    }
-  });
-}
-
-async function scan(page: Page): Promise<void> {
-  const results = await new AxeBuilder({ page }).withTags(TAGS).analyze();
-  const summary = results.violations.map((v) => ({
-    id: v.id,
-    impact: v.impact,
-    help: v.help,
-    nodes: v.nodes.map((n) => n.target.join(' ')).slice(0, 5),
-  }));
-  expect(summary).toEqual([]);
-}
-
-async function runSuite(page: Page): Promise<void> {
-  await runExhibit6(page);
-  await revealInline(page);
-  await neutralizeMotion(page);
-  await scan(page);
-}
-
-// Exhibit 6 renders its tables and byte diffs only after a run, and an empty
-// <tbody> is not the DOM that ships to a learner. Populate it before scanning.
-async function runExhibit6(page: Page): Promise<void> {
-  await page.locator('#compromise-run').click();
-  await expect(page.locator('#compromise-rows tr')).toHaveCount(4);
-}
-
-test('no WCAG A/AA violations in dark theme', async ({ page }) => {
-  await page.goto('.');
-  await runSuite(page);
-});
-
-test('no WCAG A/AA violations in light theme', async ({ page }) => {
-  await page.goto('.');
-  await page.locator('#cl-theme-toggle').click();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-  await runSuite(page);
-});

@@ -54,7 +54,7 @@ export function buildExhibit4(announce: (msg: string) => void): HTMLElement {
 
       <div class="panel" id="hash-output-panel" style="display:none">
         <div class="panel-header"><span aria-hidden="true">📤</span> Output</div>
-        <div class="hex-output" id="hash-output" role="log" aria-live="polite" aria-label="Hash DRBG hex output"></div>
+        <div class="hex-output" tabindex="0" id="hash-output" role="log" aria-live="polite" aria-label="Hash DRBG hex output"></div>
         <div style="display:flex;flex-direction:column;gap:0.5rem;margin-top:0.5rem">
           <div class="state-row"><span class="state-label">V:</span><span class="state-value" id="hash-state-v"></span></div>
           <div class="state-row">
@@ -68,7 +68,7 @@ export function buildExhibit4(announce: (msg: string) => void): HTMLElement {
       <div class="panel">
         <div class="panel-header"><span aria-hidden="true">📊</span> Three-Way Comparison</div>
         <div style="overflow-x:auto">
-          <table class="cmp-table" aria-label="Comparison of all three NIST DRBGs">
+          <table tabindex="0" class="cmp-table" aria-label="Comparison of all three NIST DRBGs">
             <thead>
               <tr><th scope="col">Property</th><th scope="col">Hash_DRBG</th><th scope="col">HMAC_DRBG</th><th scope="col">CTR_DRBG</th></tr>
             </thead>

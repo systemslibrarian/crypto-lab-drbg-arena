@@ -43,14 +43,22 @@
   --border-control: #727298;
   --text-primary: #1a1a2e;
   --text-secondary: #4a4a6a;
-  --text-muted: #606074;
+  /* Measured against the DARKEST surface it lands on, not the panel. The
+     comment this replaces claimed ">=4.5:1 on panel bg", which was true and
+     beside the point: `.diff-hex` and `.hex-output` paint `rgba(0,0,0,0.06)`
+     over that panel, and on THAT surface the old #606074 measured 4.13:1. */
+  --text-muted: #55556a;
   --green-clean: #006618; /* ≥4.5:1 on panel + hex-output backgrounds (WCAG AA) */
   --green-dim: #006618;
   --green-glow: rgba(0, 122, 31, 0.15);
   --red-corrupt: #b30000; /* ≥4.5:1 on panel background (WCAG AA) */
   --red-dim: #aa0000;
   --red-glow: rgba(204, 0, 0, 0.15);
-  --amber-warn: #cc8800;
+  /* #cc8800 measured 2.26:1 against --bg-panel — barely half the floor. It is
+     the ink of the "Under-seeded" warning in Exhibit 3, which is the most
+     safety-relevant sentence this lab prints, and the light theme had never had
+     it measured. #805200 is 5.13:1 on --bg-panel and still reads as amber. */
+  --amber-warn: #805200;
   --blue-info: #2244cc;
 }
 

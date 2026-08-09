@@ -108,7 +108,7 @@ export function buildExhibit5(announce: (msg: string) => void): HTMLElement {
         <div class="panel" id="stat-table-panel">
           <div class="panel-header"><span aria-hidden="true">✅</span> Results</div>
           <div style="overflow-x:auto">
-            <table class="cmp-table" id="stat-table" aria-label="Statistical test results for all DRBGs">
+            <table tabindex="0" class="cmp-table" id="stat-table" aria-label="Statistical test results for all DRBGs">
               <thead>
                 <tr>
                   <th scope="col">Test</th>
@@ -183,7 +183,7 @@ export function buildExhibit5(announce: (msg: string) => void): HTMLElement {
           passes exactly as the real backdoored generator did — which is the point.
         </p>
         <div style="overflow-x:auto">
-          <table class="cmp-table" id="dualec-table" aria-label="Dual EC DRBG statistical test results">
+          <table tabindex="0" class="cmp-table" id="dualec-table" aria-label="Dual EC DRBG statistical test results">
             <thead>
               <tr><th scope="col">Test</th><th scope="col">Simulated Dual_EC</th><th scope="col">Status</th></tr>
             </thead>
