@@ -102,3 +102,9 @@ control also looks safe ("inconclusive, not a pass").
 ## System construction bridge
 
 The live demo now links the [SP 800-90C final](https://csrc.nist.gov/pubs/sp/800/90/c/final) construction classes to source health, conditioning and fresh-input dependencies. DRBG Arena’s class chooser is a source-request model, not a validated RBG or a replacement for the existing compromise experiments.
+
+## Input routing lesson and attribution
+
+“Which input earns entropy credit?” separates a hypothetical validated source from unvalidated extra bytes. Change freshness, health, validation status, and routing to see whether the modeled reseed has its required 256 credited bits. The live comparison uses the existing Hash_DRBG with real optional `additional_input` in reseeding (§10.1.1.3), demonstrating that an input can change output while receiving zero credited entropy. Every byte in this comparison is a fixed public placeholder, so the numerical source credit is explicitly hypothetical. The panel is neither a source assessment nor an RBG3 implementation.
+
+**Credit:** Joshua E. Hill, *[(Current) Limitations on SP 800-90C External Conditioners and How to Overcome (Some of) Them](https://www.untruth.org/~josh/sp80090b/N20b%20HillJ%20Get_entropy_bitstring%20Restrictions%2020260422.pdf)*, ICMC N20b, version 20260422, slides 2–8, informs the input-routing lesson. The interaction and implementation are original Crypto Lab work. Hill’s later RBGC proposal and discussion of draft CMVP interpretation guidance are not presented as adopted requirements or implemented by this panel. No Hill review or endorsement is implied. Normative references: [SP 800-90C final (2025), §3.1](https://csrc.nist.gov/pubs/sp/800/90/c/final) and [SP 800-90A Rev. 1, §10.1.1.3](https://csrc.nist.gov/pubs/sp/800/90/a/r1/final).

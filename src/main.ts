@@ -5,6 +5,7 @@
 
 import './style.css';
 import { buildConstructionContext } from './ui/construction-context';
+import { buildEntropyRouting } from './ui/entropy-routing';
 import { buildExhibit1 } from './ui/exhibit1';
 import { buildConformancePanel } from './ui/conformance';
 import { buildExhibit2 } from './ui/exhibit2';
@@ -83,6 +84,7 @@ function initUI(): void {
   main.appendChild(buildExhibit5(announce));
   main.appendChild(buildExhibit6(announce));
   main.appendChild(buildConstructionContext());
+  main.appendChild(buildEntropyRouting());
 
   app.appendChild(main);
 }

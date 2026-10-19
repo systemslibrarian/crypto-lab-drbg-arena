@@ -703,3 +703,12 @@ button, [role="button"], a {
 #construction-context p, #construction-context fieldset { margin-top:.75rem; line-height:1.7; }
 #construction-context fieldset { padding:1rem; }
 #construction-context label { display:block; margin:.5rem 0; }
+
+#entropy-routing p, #entropy-routing fieldset { margin:.8rem 0; line-height:1.7; }
+#entropy-routing fieldset { padding:1rem; border:1px solid var(--text-muted); }
+#entropy-routing label { display:block; margin:.65rem 0; }
+#entropy-routing select { min-height:44px; max-width:100%; width:100%; color:var(--text-primary); background:var(--bg-panel); border:1px solid var(--text-muted); padding:.5rem; }
+#entropy-routing a { color:inherit; text-decoration:underline; }
+#routing-output code { overflow-wrap:anywhere; white-space:normal; }
+#routing-output dt { margin-top:.8rem; font-weight:bold; }
+#routing-output dd { margin-left:0; }

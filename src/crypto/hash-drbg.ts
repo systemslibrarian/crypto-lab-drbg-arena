@@ -163,13 +163,15 @@ export async function hashDrbgGenerate(
  */
 export async function hashDrbgReseed(
   state: HashDrbgState,
-  entropy?: Uint8Array
+  entropy?: Uint8Array,
+  additionalInput?: Uint8Array
 ): Promise<HashDrbgState> {
   const hash = getHashFn(state.hashFn);
   const newEntropy = entropy ?? getRandomEntropy(state.seedLen);
 
-  // seed_material = 0x01 || V || entropy_input
-  const seedMaterial = concatBytes(new Uint8Array([0x01]), state.V, newEntropy);
+  // SP 800-90A Rev.1 §10.1.1.3: additional_input is mixed separately from
+  // entropy_input; merely providing bytes does not establish an entropy claim.
+  const seedMaterial = concatBytes(new Uint8Array([0x01]), state.V, newEntropy, additionalInput ?? new Uint8Array());
 
   const V = await hashDf(hash, seedMaterial, state.seedLen);
   const C = await hashDf(hash, concatBytes(new Uint8Array([0x00]), V), state.seedLen);
