@@ -46,7 +46,7 @@ export function buildExhibit3(announce: (msg: string) => void): HTMLElement {
         <div class="controls-row">
           <button class="btn btn-primary" id="ctr-generate" aria-label="Generate CTR DRBG output">Generate</button>
           <button class="btn" id="ctr-same-seed" disabled aria-label="Generate again with same seed">Same Seed Again</button>
-          <button class="btn" id="ctr-compare" disabled aria-label="Compare CTR DRBG with HMAC DRBG using same entropy">Compare with HMAC_DRBG</button>
+          <button class="btn" id="ctr-compare" disabled aria-label="Compare with HMAC_DRBG: run CTR_DRBG against it on the same entropy">Compare with HMAC_DRBG</button>
           <button class="copy-btn" id="ctr-copy" disabled aria-label="Copy output to clipboard">Copy</button>
         </div>
       </div>
