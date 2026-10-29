@@ -45,7 +45,7 @@ export function buildExhibit3(announce: (msg: string) => void): HTMLElement {
         </div>
         <div class="controls-row">
           <button class="btn btn-primary" id="ctr-generate" aria-label="Generate CTR DRBG output">Generate</button>
-          <button class="btn" id="ctr-same-seed" disabled aria-label="Generate again with same seed">Same Seed Again</button>
+          <button class="btn" id="ctr-same-seed" disabled aria-label="Same Seed Again: generate again with the same seed">Same Seed Again</button>
           <button class="btn" id="ctr-compare" disabled aria-label="Compare with HMAC_DRBG: run CTR_DRBG against it on the same entropy">Compare with HMAC_DRBG</button>
           <button class="copy-btn" id="ctr-copy" disabled aria-label="Copy output to clipboard">Copy</button>
         </div>
@@ -255,9 +255,18 @@ function wireExhibit3(section: HTMLElement, announce: (msg: string) => void): vo
   copyBtn.addEventListener('click', () => {
     const text = outputEl.textContent ?? '';
     void navigator.clipboard.writeText(text).then(() => {
+      // The name moves with the words. axe 4.14 reports
+      // label-content-name-mismatch (WCAG 2.5.3 Label in Name) when the
+      // accessible name does not contain the visible text, and the standing
+      // name "Copy output to clipboard" has no "Copied" in it, so the
+      // confirmation state failed the gate while the resting state passed.
       copyBtn.textContent = 'Copied!';
+      copyBtn.setAttribute('aria-label', 'Copied! Output copied to clipboard');
       announce('Output copied to clipboard');
-      setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
+      setTimeout(() => {
+        copyBtn.textContent = 'Copy';
+        copyBtn.setAttribute('aria-label', 'Copy output to clipboard');
+      }, 1500);
     });
   });
 }

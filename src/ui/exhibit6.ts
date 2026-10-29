@@ -62,7 +62,7 @@ export function buildExhibit6(announce: (msg: string) => void): HTMLElement {
           <input type="text" id="compromise-entropy" placeholder="e.g. 00112233..." autocomplete="off" spellcheck="false" />
         </div>
         <div class="controls-row">
-          <button class="btn btn-primary" id="compromise-run" aria-label="Seed both generators, steal the state and run all four attacks">Steal the state &amp; attack</button>
+          <button class="btn btn-primary" id="compromise-run" aria-label="Steal the state & attack: seed both generators and run all four attacks">Steal the state &amp; attack</button>
         </div>
       </div>
 

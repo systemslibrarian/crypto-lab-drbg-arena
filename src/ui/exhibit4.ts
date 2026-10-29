@@ -142,9 +142,18 @@ function wireExhibit4(section: HTMLElement, announce: (msg: string) => void): vo
   copyBtn.addEventListener('click', () => {
     const text = outputEl.textContent ?? '';
     void navigator.clipboard.writeText(text).then(() => {
+      // The name moves with the words. axe 4.14 reports
+      // label-content-name-mismatch (WCAG 2.5.3 Label in Name) when the
+      // accessible name does not contain the visible text, and the standing
+      // name "Copy output to clipboard" has no "Copied" in it, so the
+      // confirmation state failed the gate while the resting state passed.
       copyBtn.textContent = 'Copied!';
+      copyBtn.setAttribute('aria-label', 'Copied! Output copied to clipboard');
       announce('Output copied to clipboard');
-      setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
+      setTimeout(() => {
+        copyBtn.textContent = 'Copy';
+        copyBtn.setAttribute('aria-label', 'Copy output to clipboard');
+      }, 1500);
     });
   });
 }

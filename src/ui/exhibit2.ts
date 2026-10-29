@@ -75,8 +75,8 @@ export function buildExhibit2(announce: (msg: string) => void): HTMLElement {
         </div>
         <div class="controls-row">
           <button class="btn btn-primary" id="hmac-generate" aria-label="Generate HMAC DRBG output">Generate</button>
-          <button class="btn" id="hmac-same-seed" disabled aria-label="Generate again with the same seed to demonstrate determinism">Same Seed Again</button>
-          <button class="btn" id="hmac-avalanche" disabled aria-label="Flip one hex digit of the seed and regenerate to show the avalanche effect">Flip 1 Seed Digit</button>
+          <button class="btn" id="hmac-same-seed" disabled aria-label="Same Seed Again: generate with the same seed to demonstrate determinism">Same Seed Again</button>
+          <button class="btn" id="hmac-avalanche" disabled aria-label="Flip 1 Seed Digit: flip one hex digit of the seed and regenerate to show the avalanche effect">Flip 1 Seed Digit</button>
           <button class="btn" id="hmac-reseed" disabled aria-label="Reseed HMAC DRBG with new entropy">Reseed</button>
           <button class="copy-btn" id="hmac-copy" disabled aria-label="Copy output to clipboard">Copy</button>
         </div>
@@ -413,9 +413,18 @@ function wireExhibit2(section: HTMLElement, announce: (msg: string) => void): vo
   copyBtn.addEventListener('click', () => {
     const text = outputEl.textContent ?? '';
     void navigator.clipboard.writeText(text).then(() => {
+      // The name moves with the words. axe 4.14 reports
+      // label-content-name-mismatch (WCAG 2.5.3 Label in Name) when the
+      // accessible name does not contain the visible text, and the standing
+      // name "Copy output to clipboard" has no "Copied" in it, so the
+      // confirmation state failed the gate while the resting state passed.
       copyBtn.textContent = 'Copied!';
+      copyBtn.setAttribute('aria-label', 'Copied! Output copied to clipboard');
       announce('Output copied to clipboard');
-      setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
+      setTimeout(() => {
+        copyBtn.textContent = 'Copy';
+        copyBtn.setAttribute('aria-label', 'Copy output to clipboard');
+      }, 1500);
     });
   });
 }

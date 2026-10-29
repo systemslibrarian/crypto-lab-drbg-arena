@@ -100,7 +100,7 @@ export function buildExhibit5(announce: (msg: string) => void): HTMLElement {
           the point here is the lesson below, not a production randomness audit.
         </p>
         <div class="controls-row" style="margin-top:0.75rem">
-          <button class="btn btn-primary" id="stat-run-all" aria-label="Run all statistical tests on all three DRBGs">Test All Three DRBGs</button>
+          <button class="btn btn-primary" id="stat-run-all" aria-label="Test All Three DRBGs: run all statistical tests on all three">Test All Three DRBGs</button>
         </div>
       </div>
 
