@@ -48,7 +48,8 @@ export function buildSignedMonobit(): HTMLElement {
     const note = document.createElement('p');
     const sparse = ep.concat(eq).filter(m => m * blocks < 5).length;
     note.textContent = `Continuous uniform reference: ${blocks / 10} per bin. ${sparse} of 20 finite-null bin expectations are below 5, including empty bins; a naive chi-squared approximation is unsuitable here. Complementing every negative block preserves P and puts all signed statistics at or above zero.`;
-    const wrap = document.createElement('div'); wrap.style.overflowX = 'auto'; wrap.append(table);
+    const wrap = document.createElement('div'); wrap.style.overflowX = 'auto'; wrap.tabIndex = 0;
+    wrap.setAttribute('role', 'region'); wrap.setAttribute('aria-label', 'Signed monobit distribution table'); wrap.append(table);
     panel.querySelector('#signed-result')!.replaceChildren(example, wrap, note);
   }
   panel.querySelector('#signed-run')!.addEventListener('click', () => { bits = null; render(); });
