@@ -8,10 +8,14 @@ describe('signed monobit finite reference', () => {
       expect(a.p).toBeCloseTo(b.p, 14);
       expect(a.signed + b.signed).toBe(0);
       expect(a.absolute).toBe(b.absolute);
+      expect(a.q + b.q).toBeCloseTo(calibration === 'normal' ? 1 : 1 + binomialMasses(16)[k], 12);
     }
     expect(monobit(8,16).q).toBe(.5);
     expect(monobit(2,4,'exact').q).toBe(11/16);
     expect(monobit(2,4,'exact').p).toBe(1);
+    expect(monobit(10,16).q).toBeCloseTo(0.1586552539,6);
+    expect(monobit(6,16).q).toBeCloseTo(0.8413447461,6);
+    expect(monobit(10,16,'exact').q).toBe(14893/65536);
   });
   it('matches an independent exhaustive bit-string census including tail boundaries', () => {
     for (const calibration of ['normal', 'exact'] as const) for (const field of ['p','q'] as const) {
