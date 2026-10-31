@@ -8,6 +8,7 @@ import { ctrDrbgInstantiate, ctrDrbgGenerate } from '../crypto/ctr-drbg';
 import { hashDrbgInstantiate, hashDrbgGenerate } from '../crypto/hash-drbg';
 import { getRandomEntropy } from '../crypto/utils';
 import { runAllTests } from '../stats/nist-tests';
+import { buildSignedMonobit } from './signed-monobit';
 
 
 /**
@@ -208,6 +209,7 @@ export function buildExhibit5(announce: (msg: string) => void): HTMLElement {
     </div>
   `;
 
+  section.querySelector('.exhibit-body')!.appendChild(buildSignedMonobit());
   requestAnimationFrame(() => wireExhibit5(section, announce));
   return section;
 }
