@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { runAllTests } from '../src/stats/nist-tests';
 
 /**
  * Behaviour gates for the claims the exhibits print.
@@ -93,7 +94,16 @@ test('the broken-generator grid backs its visual claim with measured numbers', a
   await page.locator('#stat-run-all').click();
   await expect(page.locator('#metric-lcg')).toContainText('1.000');
   await expect(page.locator('#metric-lcg')).toContainText('passes 0 of 4');
-  await expect(page.locator('#metric-drbg')).toContainText('passes 4 of 4');
+  // Fair output can fail a first-level test at its declared significance level.
+  // Verify the tally against the bytes actually painted, without assuming all
+  // random samples pass. The statistical routines have their own numerical KATs.
+  const painted = await page.locator('#pixel-drbg').evaluate((node) => {
+    const canvas = node as HTMLCanvasElement;
+    const pixels = canvas.getContext('2d')!.getImageData(0, 0, 64, 64).data;
+    return Array.from({length:4096}, (_, i) => pixels[4 * i]);
+  });
+  const passes = runAllTests(new Uint8Array(painted)).filter(r => r.passed).length;
+  await expect(page.locator('#metric-drbg')).toContainText(`passes ${passes} of 4`);
   await expect(page.locator('#grid-verdict')).toContainText('Measured on these two streams');
 
   // The entropy note must quote the run's own numbers rather than "8.00".
