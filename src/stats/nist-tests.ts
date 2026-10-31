@@ -34,7 +34,7 @@ function bytesToBits(bytes: Uint8Array): number[] {
 /**
  * Complementary error function approximation (needed for p-value computation).
  */
-function erfc(x: number): number {
+export function erfc(x: number): number {
   const a1 = 0.254829592;
   const a2 = -0.284496736;
   const a3 = 1.421413741;
