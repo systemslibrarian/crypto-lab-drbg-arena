@@ -84,12 +84,15 @@ describe("Exhibit 5's broken-generator grid", () => {
     expect(results[3]!.statistic.value).toBeCloseTo(6, 6);
   });
 
-  it('the high byte it used to paint is indistinguishable from noise', () => {
+  it('a reproducible public-seed high-byte stream passes these four diagnostics', () => {
     // This is why the claim was false: `(s >>> 24) & 0xff` takes the LCG's GOOD
     // bits. It renders as snow and passes every test the demo runs, while the
     // caption beside it read "visible diagonal banding … your eye catches the
     // LCG instantly". Asserted here so the regression cannot come back quietly.
     const stream = lcgHighByte(GRID);
+    const replay = lcgHighByte(GRID);
+    expect(replay).toEqual(stream);
+    expect(runAllTests(replay)).toEqual(runAllTests(stream));
     expect(Math.abs(rowCorrelation(stream, ROW))).toBeLessThan(0.05);
     expect(runAllTests(stream).filter((r) => r.passed)).toHaveLength(4);
   });

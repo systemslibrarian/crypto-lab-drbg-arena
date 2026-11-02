@@ -171,8 +171,8 @@ export function buildExhibit5(announce: (msg: string) => void): HTMLElement {
         <div class="panel-header" style="color:var(--red-corrupt)"><span aria-hidden="true">⚠️</span> Versus Dual_EC_DRBG</div>
         <p style="font-size:0.85rem;line-height:1.7;color:var(--text-secondary)">
           <span id="dualec-verdict"></span>
-          Statistical tests catch broken DRBGs (like a PRNG seeded with a constant) but
-          <strong style="color:var(--red-corrupt)">cannot detect a mathematically sound backdoor</strong>.
+          Statistical tests can detect some distributional defects, but a fixed or public seed
+          can still produce output that passes. They <strong style="color:var(--red-corrupt)">cannot establish unpredictability or rule out a backdoor</strong>.
           The Dual_EC backdoor is undetectable by statistical analysis — it only helps
           the party who knows the discrete log relationship between P and Q.
         </p>
@@ -201,10 +201,11 @@ export function buildExhibit5(announce: (msg: string) => void): HTMLElement {
       </div>
 
       <div class="callout" role="note">
-        <strong>Why this matters:</strong> Statistical tests catch broken DRBGs (like a PRNG
-        seeded with a constant) but cannot detect a mathematically sound backdoor. This is
-        exactly why algorithm choice and standard compliance matter — not just output quality
-        checks. A backdoored DRBG passes every statistical test by design.
+        <strong>Why this matters:</strong> Statistical tests inspect output patterns, not seed freshness or secrecy.
+        Replaying a fixed public seed can reproduce the same plausible-looking stream and scores.
+        Passing these tests establishes neither unpredictability nor absence of a backdoor.
+        <a href="https://csrc.nist.gov/pubs/sp/800/22/r1/upd1/final">NIST SP 800-22 Rev. 1a (2010)</a>
+        explicitly states that statistical testing cannot replace cryptanalysis.
       </div>
     </div>
   `;

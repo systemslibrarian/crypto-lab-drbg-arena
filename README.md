@@ -34,7 +34,7 @@ Six exhibits plus a live conformance check:
 - **No reseeding or prediction resistance.** Generating indefinitely from one seed without reseeding means a future state compromise can expose subsequent output; SP 800-90A defines reseed limits for a reason.
 - **State compromise and backtracking.** If the internal state leaks, an implementation without proper backtracking resistance can let an attacker reconstruct previously generated values.
 - **Choosing a non-CSPRNG.** Using `Math.random()` or other statistical (non-cryptographic) generators for keys, nonces, or IVs defeats the entire scheme.
-- **Trusting statistical tests for security.** Passing SP 800-22 randomness tests does not prove a generator is secure — Dual_EC_DRBG passed them while being backdoored.
+- **Trusting statistical tests for security.** A fixed or public seed can produce statistically plausible output. Repeating it reproduces the stream and its test scores; these tests do not establish seed freshness, secrecy, unpredictability, or absence of a backdoor. [NIST SP 800-22 Rev. 1a (2010)](https://csrc.nist.gov/pubs/sp/800/22/r1/upd1/final) explicitly says statistical testing cannot replace cryptanalysis. Exhibit 5’s Dual_EC row remains an OS-randomness stand-in, not an implementation of Dual_EC.
 
 ## Real-World Usage
 
