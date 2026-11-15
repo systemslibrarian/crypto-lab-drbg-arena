@@ -53,7 +53,7 @@ function initUI(): void {
     </div>
     <aside class="cl-hero-why" aria-label="Why it matters">
       <span class="cl-hero-why-label">WHY IT MATTERS</span>
-      <p class="cl-hero-why-text">Keys, nonces, and IVs are only as safe as the generator behind them. A DRBG must stay unpredictable even if its state leaks, and passing statistical tests proves nothing — Dual_EC looked random too.</p>
+      <p class="cl-hero-why-text">Keys, nonces, and IVs are only as safe as the generator behind them. A state leak must not expose the output that came before it, and only a reseed from fresh entropy protects the output that comes after. Passing statistical tests proves nothing — Dual_EC looked random too.</p>
     </aside>
   `;
   main.appendChild(hero);

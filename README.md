@@ -2,7 +2,9 @@
 
 ## What It Is
 
-DRBG Arena demonstrates the three NIST SP 800-90A approved Deterministic Random Bit Generators: HMAC_DRBG, CTR_DRBG, and Hash_DRBG. Each construction takes entropy from a true random source and produces a cryptographically secure pseudorandom output stream. This demo is the correct-case companion to [Corrupted Oracle](https://systemslibrarian.github.io/crypto-lab-corrupted-oracle/), which shows what happens when a DRBG is intentionally backdoored (Dual_EC_DRBG). The security model is symmetric: all output is deterministically derived from the seed, computationally indistinguishable from true randomness, and resistant to backtracking and prediction attacks.
+DRBG Arena demonstrates the three NIST SP 800-90A approved Deterministic Random Bit Generators: HMAC_DRBG, CTR_DRBG, and Hash_DRBG. Each construction takes entropy from a true random source and produces a cryptographically secure pseudorandom output stream. This demo is the correct-case companion to [Corrupted Oracle](https://systemslibrarian.github.io/crypto-lab-corrupted-oracle/), which shows what happens when a DRBG is intentionally backdoored (Dual_EC_DRBG). The security model is symmetric: all output is deterministically derived from the seed and computationally indistinguishable from true randomness. Backtracking resistance comes with the mechanism — SP 800-90A Rev. 1 §8.8 states that "[a]ll DRBG mechanisms in this Recommendation have been designed to provide backtracking resistance" — but prediction resistance is conditional: the same section states it "can be provided only by ensuring that a DRBG is effectively reseeded with fresh entropy between producing output for consecutive DRBG requests." So a state compromise leaves earlier output safe, while later output stays exposed until such a reseed happens. Exhibit 6 measures both halves of that.
+
+**Standards reviewed 15 November 2026:** the paragraph above was checked against [NIST SP 800-90A Rev. 1](https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-90Ar1.pdf), §8.8 "Prediction Resistance and Backtracking Resistance".
 
 ## When to Use It
 
