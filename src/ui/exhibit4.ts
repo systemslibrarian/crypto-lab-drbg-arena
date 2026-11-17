@@ -75,10 +75,10 @@ export function buildExhibit4(announce: (msg: string) => void): HTMLElement {
             <tbody>
               <tr><td>Primitive</td><td>SHA-256/512</td><td>HMAC-SHA-256</td><td>AES-256-CTR</td></tr>
               <tr><td>State components</td><td>V, C</td><td>V, K</td><td>V, Key</td></tr>
-              <tr><td>Speed</td><td>Medium</td><td>Medium</td><td>Fast (AES-NI)</td></tr>
+              <tr><td>Cost per block (Table C-1)</td><td>2 hash calls</td><td>4 hash calls</td><td>1 AES encrypt</td></tr>
               <tr><td>FIPS 140-2/3</td><td>✓</td><td>✓</td><td>✓</td></tr>
               <tr><td>Use when</td><td>Simplicity needed</td><td>General use</td><td>AES-NI hardware</td></tr>
-              <tr><td>Avoid when</td><td>Performance needed</td><td>Only AES available</td><td>No AES-NI</td></tr>
+              <tr><td>Avoid when</td><td>The security argument must rest on a standard assumption</td><td>Only AES available</td><td>No AES-NI</td></tr>
             </tbody>
           </table>
         </div>
@@ -86,9 +86,25 @@ export function buildExhibit4(announce: (msg: string) => void): HTMLElement {
 
       <div class="callout" role="note">
         <strong>Why this matters:</strong> Hash_DRBG is the easiest NIST DRBG to implement
-        correctly from scratch, with no key schedule or HMAC overhead. It is used in
-        embedded systems and constrained environments. Its simplicity makes it the best
-        choice for learning DRBG internals.
+        correctly from scratch, with no key schedule or HMAC overhead, which makes it a good
+        place to read DRBG internals.
+        <p style="margin:0.6rem 0 0">This table used to say to avoid Hash_DRBG when
+        &ldquo;performance needed&rdquo; and to rate it and HMAC_DRBG both &ldquo;Medium&rdquo;.
+        <a href="https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-90Ar1.pdf"
+           target="_blank" rel="noopener noreferrer"
+           style="color:var(--blue-info);text-decoration:underline">SP 800-90A Rev. 1<span class="sr-only"> (opens in new tab)</span></a>
+        Appendix C.1 says the opposite: &ldquo;Hash_DRBG produces pseudorandom output bits in
+        about half the time required by HMAC_DRBG.&rdquo; Table C-1 gives the dominating cost per
+        block as 2 hash calls for Hash_DRBG against 4 for HMAC_DRBG, so the row above quotes
+        that table rather than a speed word. Appendix C.2 adds the caveat that matters more than
+        either figure: &ldquo;few if any consuming applications are expected to need output bits
+        faster than HMAC_DRBG can provide them.&rdquo;</p>
+        <p style="margin:0.6rem 0 0">The real reason C.1 gives for weighing Hash_DRBG carefully
+        is its security argument, not its speed: &ldquo;It is difficult to relate the properties
+        of the hash function required by Hash_DRBG with common properties, such as collision
+        resistance, pre-image resistance, or pseudorandomness&rdquo;, whereas C.2 rests
+        HMAC_DRBG on the assumption that the hash used in HMAC &ldquo;is a pseudorandom function
+        family&rdquo;. That is what the &ldquo;Avoid when&rdquo; cell now says.</p>
       </div>
     </div>
   `;

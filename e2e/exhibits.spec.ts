@@ -207,3 +207,39 @@ test('no exhibit presents CTR_DRBG as the mandatory DRBG', async ({ page }) => {
     page.locator('a[href="https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-90Ar1.pdf"]').first(),
   ).toHaveCount(1);
 });
+
+test('the three-way table does not call Hash_DRBG the slow one', async ({ page }) => {
+  // The table rated Hash_DRBG and HMAC_DRBG both "Medium" for Speed and told
+  // readers to avoid Hash_DRBG when "Performance needed". SP 800-90A Rev. 1
+  // Appendix C.1 says the opposite — "Hash_DRBG produces pseudorandom output
+  // bits in about half the time required by HMAC_DRBG" — and its Table C-1
+  // gives the dominating cost per block as 2 hash calls against HMAC_DRBG's 4.
+  // (Appendix C is DRBG Mechanism Selection in Rev. 1; Appendix D is the
+  // references, so the letter is checked against this revision, not an older.)
+  await open(page);
+  const table = page.getByRole('table', { name: 'Comparison of all three NIST DRBGs' });
+  await expect(table).toBeVisible();
+  const body = (await table.innerText()).replace(/\s+/g, ' ');
+
+  // The row is quoted from Table C-1 rather than asserted as a speed word.
+  expect(body).toContain('Cost per block (Table C-1)');
+  expect(body).toContain('2 hash calls');
+  expect(body).toContain('4 hash calls');
+  expect(body).toContain('1 AES encrypt');
+
+  // The reversed claims are gone.
+  expect(body).not.toContain('Performance needed');
+  expect(body).not.toMatch(/Speed\s/);
+
+  // …and the cell now carries C.1's actual reservation about Hash_DRBG.
+  expect(body).toContain('The security argument must rest on a standard assumption');
+
+  const note = (await page.locator('.callout', { hasText: 'about half the time' }).innerText())
+    .replace(/\s+/g, ' ');
+  expect(note).toContain(
+    'Hash_DRBG produces pseudorandom output bits in about half the time required by HMAC_DRBG',
+  );
+  expect(note).toContain('few if any consuming applications are expected to need output bits');
+  expect(note).toContain('collision resistance, pre-image resistance, or pseudorandomness');
+  expect(note).toContain('Appendix C.1');
+});
