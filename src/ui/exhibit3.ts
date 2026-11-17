@@ -17,13 +17,13 @@ export function buildExhibit3(announce: (msg: string) => void): HTMLElement {
     <h2 class="exhibit-title" id="exhibit3-title">Exhibit 3 — CTR_DRBG</h2>
     <div class="exhibit-body">
       <div class="panel">
-        <div class="panel-header"><span aria-hidden="true">🔒</span> AES-Based, FIPS-Required</div>
+        <div class="panel-header"><span aria-hidden="true">🔒</span> AES-Based, SP 800-90A Approved</div>
         <p style="font-size:0.85rem;line-height:1.7;color:var(--text-secondary)">
           Based on <strong style="color:var(--text-primary)">AES-256 in counter mode</strong>.
           Internal state: <strong style="color:var(--text-primary)">V</strong> (128-bit counter block) and
           <strong style="color:var(--text-primary)">Key</strong> (256-bit AES key). Both updated after
-          each Generate call. Required in many U.S. government and DoD environments.
-          It is usually the faster of the two on hardware with AES-NI instructions —
+          each Generate call. One of the three mechanisms SP 800-90A Rev. 1 approves, not the
+          mandatory one. It is usually the faster of the two on hardware with AES-NI instructions —
           <strong style="color:var(--text-primary)">Compare with HMAC_DRBG</strong> below times both in
           this browser and prints what it actually measured, which is not the same claim.
         </p>
@@ -100,10 +100,22 @@ export function buildExhibit3(announce: (msg: string) => void): HTMLElement {
       </div>
 
       <div class="callout" role="note">
-        <strong>Why this matters:</strong> CTR_DRBG is mandated in U.S. government and DoD
-        environments. Windows CNG (Cryptography Next Generation), many HSMs, and most
-        FIPS 140-2 validated modules use CTR_DRBG with AES-256. If you are building for
-        federal procurement, this is your DRBG.
+        <strong>Why this matters:</strong> CTR_DRBG is widely deployed, but it is not required:
+        <a href="https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-90Ar1.pdf"
+           target="_blank" rel="noopener noreferrer"
+           style="color:var(--blue-info);text-decoration:underline">SP
+        800-90A Rev. 1<span class="sr-only"> (opens in new tab)</span></a> §10 approves Hash_DRBG,
+        HMAC_DRBG and CTR_DRBG and says "[t]he selection
+        of a DRBG mechanism depends on several factors, including the security strength to be
+        supported and what cryptographic primitives are available". Its Appendix C frames the choice
+        as a design decision, with CTR_DRBG "a good choice when a module also provides encryption
+        with AES". Windows is one such module: Microsoft documents that since Windows Vista SP1 and
+        Windows Server 2008 the CNG
+        <a href="https://learn.microsoft.com/en-us/windows/win32/seccng/cng-algorithm-identifiers"
+           target="_blank" rel="noopener noreferrer"
+           style="color:var(--blue-info);text-decoration:underline"><code>BCRYPT_RNG_ALGORITHM</code><span class="sr-only"> (opens in new tab)</span></a>
+        is "based on the AES counter mode specified in the NIST SP 800-90 standard". A validated
+        module must use an approved DRBG; nothing picks this one for you.
       </div>
     </div>
   `;

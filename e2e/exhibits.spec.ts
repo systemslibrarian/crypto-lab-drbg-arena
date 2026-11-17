@@ -181,3 +181,29 @@ test('the run is deterministic in the seed the learner supplies', async ({ page 
   await page.locator('#compromise-run').click();
   await expect(page.locator('#compromise-stolen-hmac')).not.toHaveText(first);
 });
+
+test('no exhibit presents CTR_DRBG as the mandatory DRBG', async ({ page }) => {
+  // Exhibit 3 was headed "AES-Based, FIPS-Required" and said CTR_DRBG "is
+  // mandated in U.S. government and DoD environments ... If you are building
+  // for federal procurement, this is your DRBG"; the three-way table told
+  // learners to avoid HMAC_DRBG when "FIPS CTR required". SP 800-90A Rev. 1 §10
+  // approves Hash_DRBG, HMAC_DRBG and CTR_DRBG alike — "[t]he selection of a
+  // DRBG mechanism depends on several factors, including the security strength
+  // to be supported and what cryptographic primitives are available" — and
+  // Appendix C treats the choice as a design decision. Nothing mandates one.
+  await open(page);
+  const body = (await page.locator('body').innerText()).replace(/\s+/g, ' ');
+  expect(body).not.toContain('FIPS-Required');
+  expect(body).not.toContain('mandated in U.S. government');
+  expect(body).not.toContain('this is your DRBG');
+  expect(body).not.toContain('FIPS CTR required');
+  expect(body).not.toContain('Required in many U.S. government');
+
+  // …and it says positively that all three are approved and the choice is yours.
+  expect(body).toContain('One of the three mechanisms SP 800-90A Rev. 1 approves, not the mandatory one');
+  expect(body).toContain('approves Hash_DRBG, HMAC_DRBG and CTR_DRBG');
+  expect(body).toContain('nothing picks this one for you');
+  await expect(
+    page.locator('a[href="https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-90Ar1.pdf"]').first(),
+  ).toHaveCount(1);
+});

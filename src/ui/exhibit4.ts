@@ -78,7 +78,7 @@ export function buildExhibit4(announce: (msg: string) => void): HTMLElement {
               <tr><td>Speed</td><td>Medium</td><td>Medium</td><td>Fast (AES-NI)</td></tr>
               <tr><td>FIPS 140-2/3</td><td>✓</td><td>✓</td><td>✓</td></tr>
               <tr><td>Use when</td><td>Simplicity needed</td><td>General use</td><td>AES-NI hardware</td></tr>
-              <tr><td>Avoid when</td><td>Performance needed</td><td>FIPS CTR required</td><td>No AES-NI</td></tr>
+              <tr><td>Avoid when</td><td>Performance needed</td><td>Only AES available</td><td>No AES-NI</td></tr>
             </tbody>
           </table>
         </div>
