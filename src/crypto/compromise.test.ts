@@ -13,7 +13,7 @@ import {
   decrementCounter,
   blocksFor,
 } from './ctr-no-update';
-import { incrementCounter, toHex, fromHex } from './utils';
+import { incrementCounter, toHex, fromHex, getRandomEntropy } from './utils';
 import { hmacDrbgInstantiate, hmacDrbgGenerate } from './hmac-drbg';
 
 const SEED = fromHex(
@@ -63,7 +63,7 @@ describe('CTR-no-update: rewind is an exact inverse of the state transition', ()
 });
 
 describe('HMAC_DRBG: the state really does move on every Generate', () => {
-  it('changes both K and V, so no rewind is even definable', async () => {
+  it('changes both K and V, on every Generate call', async () => {
     const s0 = await hmacDrbgInstantiate(SEED);
     const r1 = await hmacDrbgGenerate(s0, 32);
     expect(r1.newK).not.toBe(r1.prevK);
@@ -105,12 +105,12 @@ describe('runCompromise — the experiment itself', () => {
     const past2 = run.rows.find((r) => r.id === 'past-2')!;
 
     // Positive control: the defective generator hands back both earlier rounds.
-    expect(past1.noUpdate.matchedBytes).toBe(32);
-    expect(past1.noUpdate.verdict).toBe('recovered');
-    expect(past2.noUpdate.matchedBytes).toBe(32);
-    expect(past2.noUpdate.verdict).toBe('recovered');
+    expect(past1.noUpdate!.matchedBytes).toBe(32);
+    expect(past1.noUpdate!.verdict).toBe('recovered');
+    expect(past2.noUpdate!.matchedBytes).toBe(32);
+    expect(past2.noUpdate!.verdict).toBe('recovered');
 
-    // The approved construction gives up nothing beyond chance.
+    // The recovery attempts only match at the chance rate.
     expect(past1.hmac.verdict).toBe('failed');
     expect(past2.hmac.verdict).toBe('failed');
     expect(past1.hmac.matchedBytes).toBeLessThanOrEqual(run.chanceCeiling);
@@ -121,23 +121,48 @@ describe('runCompromise — the experiment itself', () => {
     const run = await runCompromise({ entropy: SEED, reseedEntropy: RESEED, roundBytes: 32 });
     const forward = run.rows.find((r) => r.id === 'future-3')!;
     expect(forward.hmac.verdict).toBe('recovered');
-    expect(forward.noUpdate.verdict).toBe('recovered');
+    expect(forward.noUpdate!.verdict).toBe('recovered');
     expect(forward.hmac.matchedBytes).toBe(32);
-    expect(forward.noUpdate.matchedBytes).toBe(32);
+    expect(forward.noUpdate!.matchedBytes).toBe(32);
   });
 
   it('locks both attackers out once the victim reseeds from fresh entropy', async () => {
     const run = await runCompromise({ entropy: SEED, reseedEntropy: RESEED, roundBytes: 32 });
     const reseeded = run.rows.find((r) => r.id === 'future-3-reseeded')!;
     expect(reseeded.hmac.verdict).toBe('failed');
-    expect(reseeded.noUpdate.verdict).toBe('failed');
+    expect(reseeded.noUpdate!.verdict).toBe('failed');
+  });
+
+  it('confirms the round-2 final block in 1,000 random runs only without additional input', async () => {
+    const additionalInput = new TextEncoder().encode('DRBG Arena Exhibit 6');
+    const confirmed = { without: 0, with: 0 };
+    for (let i = 0; i < 1_000; i++) {
+      const inputs = { entropy: getRandomEntropy(48), reseedEntropy: RESEED };
+      const without = await runCompromise(inputs);
+      const withInput = await runCompromise({ ...inputs, additionalInput });
+      if (without.rows.find((r) => r.id === 'confirm-last-block')!.hmac.verdict === 'confirmed') {
+        confirmed.without++;
+      }
+      if (withInput.rows.find((r) => r.id === 'confirm-last-block')!.hmac.verdict === 'confirmed') {
+        confirmed.with++;
+      }
+    }
+    expect(confirmed).toEqual({ without: 1_000, with: 0 });
+  }, 30_000);
+
+  it('confirms the final block of a multi-block request', async () => {
+    const run = await runCompromise({ entropy: SEED, reseedEntropy: RESEED, roundBytes: 64 });
+    const confirm = run.rows.find((r) => r.id === 'confirm-last-block')!;
+    expect(confirm.hmac.matchedBytes).toBe(32);
+    expect(confirm.hmac.verdict).toBe('confirmed');
+    expect(confirm.noUpdate).toBeNull();
   });
 
   it('is deterministic in its inputs, so the browser suite can pin exact numbers', async () => {
     const a = await runCompromise({ entropy: SEED, reseedEntropy: RESEED, roundBytes: 32 });
     const b = await runCompromise({ entropy: SEED, reseedEntropy: RESEED, roundBytes: 32 });
-    expect(a.rows.map((r) => [r.hmac.matchedBytes, r.noUpdate.matchedBytes])).toEqual(
-      b.rows.map((r) => [r.hmac.matchedBytes, r.noUpdate.matchedBytes])
+    expect(a.rows.map((r) => [r.hmac.matchedBytes, r.noUpdate?.matchedBytes])).toEqual(
+      b.rows.map((r) => [r.hmac.matchedBytes, r.noUpdate?.matchedBytes])
     );
     expect(a.stolenHmac).toBe(b.stolenHmac);
   });
@@ -149,9 +174,9 @@ describe('runCompromise — the experiment itself', () => {
     const b = await runCompromise({ entropy: other, reseedEntropy: RESEED, roundBytes: 32 });
     const pa = a.rows.find((r) => r.id === 'past-2')!;
     const pb = b.rows.find((r) => r.id === 'past-2')!;
-    expect(toHex(pa.noUpdate.truth)).not.toBe(toHex(pb.noUpdate.truth));
+    expect(toHex(pa.noUpdate!.truth)).not.toBe(toHex(pb.noUpdate!.truth));
     // …and the recovery still lands, because it is an inversion, not a lookup.
-    expect(pb.noUpdate.matchedBytes).toBe(32);
+    expect(pb.noUpdate!.matchedBytes).toBe(32);
   });
 });
 
@@ -166,11 +191,29 @@ describe('summarize — the page-level conclusion', () => {
     expect(s.headline).toContain('measured, not assumed');
   });
 
+  it('reports a contradiction if confirmation fails without additional input', async () => {
+    const run = await runCompromise({ entropy: SEED, reseedEntropy: RESEED });
+    expect(summarize(run).headline).toContain('confirms the last block');
+    const confirm = run.rows.find((r) => r.id === 'confirm-last-block')!;
+    confirm.hmac.verdict = 'failed';
+    expect(summarize(run).headline).toContain('This should never happen');
+    expect(summarize(run).headline).toContain('trust the byte counts');
+  });
+
+  it('reports the measured confirmation failure with additional input', async () => {
+    const additionalInput = new Uint8Array([42]);
+    const run = await runCompromise({ entropy: SEED, reseedEntropy: RESEED, additionalInput });
+    expect(summarize(run).headline).toContain('the check does not confirm the final block');
+    const confirm = run.rows.find((r) => r.id === 'confirm-last-block')!;
+    confirm.hmac.verdict = 'confirmed';
+    expect(summarize(run).headline).toContain('unexpectedly succeeded');
+  });
+
   it('refuses to call an inconclusive run a pass when the control also holds', async () => {
     const run = await runCompromise({ entropy: SEED, reseedEntropy: RESEED, roundBytes: 32 });
     // Force the control to look safe, as it would if the experiment were blind.
     for (const row of run.rows) {
-      if (row.direction === 'backward') {
+      if (row.direction === 'backward' && row.noUpdate) {
         row.noUpdate.matchedBytes = 0;
         row.noUpdate.verdict = 'failed';
       }

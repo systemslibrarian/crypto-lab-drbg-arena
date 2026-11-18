@@ -8,6 +8,6 @@ export default defineConfig({
   },
   plugins: [tailwindcss()],
   test: {
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'src/**/*.test.mjs'],
   },
 });

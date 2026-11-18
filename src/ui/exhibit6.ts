@@ -1,25 +1,10 @@
-/**
- * Exhibit 6 — Steal the state.
- *
- * Exhibit 2 prints, in prose, "the old state is destroyed by a one-way
- * function; this is why the past can't be recovered ... an attacker who steals
- * the state now cannot reconstruct earlier output." That is the strongest claim
- * on the page and, until this exhibit, the only evidence for it was the
- * sentence. Here the learner mounts the theft.
- *
- * Two generators are seeded from the same entropy: the approved HMAC_DRBG, and
- * the same CTR_DRBG code with its post-Generate Update step deleted. Both emit
- * three rounds; the state is stolen after round 2; four attacks are then run
- * from the stolen bytes alone and each is scored byte-for-byte against what
- * really happened. The defective generator is the positive control — it hands
- * its entire past back exactly, which is what makes "HMAC_DRBG gave up nothing"
- * a measurement instead of a restatement.
- */
+/** Exhibit 6 — Steal the state. */
 
-import { runCompromise, summarize, type AttackResult, type CompromiseRun } from '../crypto/compromise';
+import { runCompromise, summarize, type AttackResult, type CompromiseInputs, type CompromiseRun } from '../crypto/compromise';
 import { fromHex, getRandomEntropy } from '../crypto/utils';
 
 const ROUND_BYTES = 32;
+const ADDITIONAL_INPUT = 'DRBG Arena Exhibit 6';
 
 export function buildExhibit6(announce: (msg: string) => void): HTMLElement {
   const section = document.createElement('section');
@@ -33,8 +18,7 @@ export function buildExhibit6(announce: (msg: string) => void): HTMLElement {
         <div class="panel-header"><span aria-hidden="true">🕵️</span> The claim being tested</div>
         <p style="font-size:0.85rem;line-height:1.7;color:var(--text-secondary)">
           Exhibit 2 says an attacker who steals the internal state cannot reconstruct earlier
-          output — <strong style="color:var(--text-primary)">backtracking resistance</strong>.
-          Mount the theft and find out. Two generators are seeded from the
+          output. Recovery and guess confirmation are tested here using the
           <strong style="color:var(--text-primary)">same entropy</strong>: the approved
           <strong style="color:var(--text-primary)">HMAC_DRBG</strong> (SP 800-90A §10.1.2), and
           <strong style="color:var(--red-corrupt)">CTR-no-update</strong> — the approved CTR_DRBG
@@ -44,14 +28,13 @@ export function buildExhibit6(announce: (msg: string) => void): HTMLElement {
         <p style="font-size:0.85rem;line-height:1.7;color:var(--text-secondary)">
           Both emit three ${ROUND_BYTES}-byte rounds. The state is stolen
           <strong style="color:var(--text-primary)">immediately after round 2</strong>, exfiltrated
-          as hex and rebuilt on the attacker's side, and four attacks are run from those bytes
-          alone. Every attack is scored byte-for-byte against what the generator really produced —
-          the verdicts below are read off the match counts and never off which generator it was.
+          as hex and rebuilt on the attacker's side. The confirmation check uses a candidate
+          final block from round 2 and compares <code>HMAC(K_stolen, candidate)</code> with
+          <code>V_stolen</code>. A full match confirms the guess. The check itself produces
+          only a match verdict.
         </p>
-        <p style="font-size:0.8rem;line-height:1.7;color:var(--text-muted)">
-          The defective generator is the point of the second column. It is the positive control:
-          if the experiment could not detect a broken past, CTR-no-update would come out looking
-          safe too.
+        <p style="font-size:0.8rem;line-height:1.7;color:var(--text-secondary)">
+          Woodage and Shumow, <a style="color:inherit;text-decoration:underline" href="https://eprint.iacr.org/2018/349">An Analysis of the NIST SP 800-90A Standard</a>, ePrint 2018/349, §7.1 (EUROCRYPT 2019, §6.1).
         </p>
       </div>
 
@@ -61,8 +44,12 @@ export function buildExhibit6(announce: (msg: string) => void): HTMLElement {
           <label for="compromise-entropy">Seed entropy (hex, or leave blank for fresh OS entropy)</label>
           <input type="text" id="compromise-entropy" placeholder="e.g. 00112233..." autocomplete="off" spellcheck="false" />
         </div>
+        <div class="field-group">
+          <label><input type="checkbox" id="compromise-additional-input" /> Use additional input for HMAC_DRBG</label>
+          <span style="color:var(--text-secondary)">Public input when enabled (UTF-8) <code>${ADDITIONAL_INPUT}</code></span>
+        </div>
         <div class="controls-row">
-          <button class="btn btn-primary" id="compromise-run" aria-label="Steal the state & attack: seed both generators and run all four attacks">Steal the state &amp; attack</button>
+          <button class="btn btn-primary" id="compromise-run" aria-label="Steal the state & attack: seed both generators and run all five checks">Steal the state &amp; attack</button>
         </div>
       </div>
 
@@ -76,9 +63,9 @@ export function buildExhibit6(announce: (msg: string) => void): HTMLElement {
       </div>
 
       <div class="panel" id="compromise-results-panel" style="display:none">
-        <div class="panel-header"><span aria-hidden="true">📊</span> Four attacks, from the stolen bytes alone</div>
+        <div class="panel-header"><span aria-hidden="true">📊</span> Recovery, confirmation, and prediction</div>
         <div style="overflow-x:auto">
-          <table tabindex="0" class="cmp-table" id="compromise-results" aria-label="Bytes the attacker recovered from each generator, per attack">
+          <table tabindex="0" class="cmp-table" id="compromise-results" aria-label="Byte matches and verdicts for each state compromise check">
             <thead>
               <tr>
                 <th scope="col">Attack from the stolen state</th>
@@ -102,7 +89,7 @@ export function buildExhibit6(announce: (msg: string) => void): HTMLElement {
         </p>
         <div class="diff-stack">
           <div class="diff-row">
-            <span class="diff-tag">HMAC_DRBG — attacker's best from the stolen state</span>
+            <span class="diff-tag">HMAC_DRBG — stream generated from the stolen state</span>
             <div class="diff-hex" id="compromise-diff-hmac" tabindex="0" role="region" aria-label="HMAC_DRBG attacker attempt, diffed against the true round 2 output"></div>
           </div>
           <div class="diff-row">
@@ -111,21 +98,16 @@ export function buildExhibit6(announce: (msg: string) => void): HTMLElement {
           </div>
         </div>
         <p style="font-size:0.78rem;line-height:1.7;color:var(--text-muted);margin-top:0.6rem">
-          HMAC_DRBG has no rewind operation for the attacker to call: its state transition is
-          <code>K = HMAC(K, V‖0x00)</code>, and reversing it is the SHA-256 preimage problem. So
-          the attempt shown is the only stream the stolen state can emit, scored against the past
-          on exactly the same footing as the exact recovery beside it. CTR-no-update's rewind is a
-          real inverse — decrement the counter — which is why it lands every byte.
+          The HMAC_DRBG recovery attempt compares the stream generated from the stolen state
+          with the earlier output. CTR-no-update provides a positive control because stepping
+          its counter back exactly reproduces the earlier stream.
         </p>
       </div>
 
       <div class="callout" role="note">
-        <strong>Why this matters:</strong> forward secrecy for a generator is not a slogan; it is
-        the reason a key generated an hour before a memory disclosure is still safe. Note what the
-        experiment does <em>not</em> show: neither generator resists prediction of
-        <em>future</em> output after a compromise. SP 800-90A calls that
-        <strong>prediction resistance</strong>, and it is a separate property that only a reseed
-        from fresh entropy provides — which is exactly what the fourth row measures.
+        <strong>Why this matters</strong>
+        Recovery, confirmation, and prediction measure different effects of a state compromise.
+        The final row measures how a reseed with fresh entropy changes the next output.
       </div>
     </div>
   `;
@@ -134,7 +116,11 @@ export function buildExhibit6(announce: (msg: string) => void): HTMLElement {
   return section;
 }
 
-function verdictCell(r: AttackResult): string {
+function verdictCell(r: AttackResult, confirmation: boolean): string {
+  if (confirmation) {
+    const confirmed = r.verdict === 'confirmed';
+    return `<span class="${confirmed ? 'stat-fail' : 'stat-pass'}">${r.matchedBytes}/${r.totalBytes} bytes — ${confirmed ? 'CONFIRMED' : 'not confirmed'}</span>`;
+  }
   const cls =
     r.verdict === 'recovered' ? 'stat-fail' : r.verdict === 'failed' ? 'stat-pass' : 'stat-fail';
   const word =
@@ -166,21 +152,32 @@ function wireExhibit6(section: HTMLElement, announce: (msg: string) => void): vo
   const detailPanel = section.querySelector<HTMLElement>('#compromise-detail-panel')!;
   const rowsBody = section.querySelector<HTMLElement>('#compromise-rows')!;
 
-  runBtn.addEventListener('click', async () => {
+  const additional = section.querySelector<HTMLInputElement>('#compromise-additional-input')!;
+  let lastInputs: CompromiseInputs | undefined;
+  let runNumber = 0;
+
+  function readInputs(): CompromiseInputs {
     const typed = entropyInput.value.trim();
     const entropy =
       typed.length > 0 && /^[0-9a-fA-F]+$/.test(typed) ? fromHex(typed) : getRandomEntropy(48);
-    // Fresh entropy for the reseed row, derived independently of the seed so the
-    // fourth row is a genuine reseed rather than a relabelled replay.
-    const reseedEntropy = getRandomEntropy(48);
+    return { entropy, reseedEntropy: getRandomEntropy(48), roundBytes: ROUND_BYTES };
+  }
 
+  async function execute(inputs: CompromiseInputs): Promise<void> {
+    lastInputs = inputs;
+    const currentRun = ++runNumber;
     runBtn.disabled = true;
     let run: CompromiseRun;
     try {
-      run = await runCompromise({ entropy, reseedEntropy, roundBytes: ROUND_BYTES });
+      run = await runCompromise({
+        ...inputs,
+        additionalInput: additional.checked ? new TextEncoder().encode(ADDITIONAL_INPUT) : undefined,
+      });
     } finally {
-      runBtn.disabled = false;
+      if (currentRun === runNumber) runBtn.disabled = false;
     }
+
+    if (currentRun !== runNumber) return;
 
     section.querySelector<HTMLElement>('#compromise-seed')!.textContent = run.entropyHex;
     section.querySelector<HTMLElement>('#compromise-stolen-hmac')!.textContent = run.stolenHmac;
@@ -195,19 +192,20 @@ function wireExhibit6(section: HTMLElement, announce: (msg: string) => void): vo
       th.textContent = row.label;
       const a = document.createElement('td');
       a.id = `compromise-cell-${row.id}-hmac`;
-      a.innerHTML = verdictCell(row.hmac);
+      a.innerHTML = verdictCell(row.hmac, row.id === 'confirm-last-block');
       const b = document.createElement('td');
       b.id = `compromise-cell-${row.id}-noupdate`;
-      b.innerHTML = verdictCell(row.noUpdate);
+      if (row.noUpdate) b.innerHTML = verdictCell(row.noUpdate, false);
+      else b.textContent = 'Not applicable';
       tr.append(th, a, b);
       rowsBody.appendChild(tr);
     }
 
     section.querySelector<HTMLElement>('#compromise-chance')!.textContent =
-      `Two unrelated ${run.roundBytes}-byte strings agree on about ${run.expectedByChance.toFixed(2)} bytes by accident, ` +
+      `For recovery and prediction, two unrelated ${run.roundBytes}-byte strings agree on about ${run.expectedByChance.toFixed(2)} bytes by accident, ` +
       `so anything at or below ${run.chanceCeiling} matching bytes is scored “failed”. A full ${run.roundBytes}/${run.roundBytes} ` +
       `is scored “RECOVERED”. Anything in between would be scored “PARTIAL” and is not expected to occur — the threshold ` +
-      `is not a rounding of the answer.`;
+      `is not a rounding of the answer. Confirmation requires a full match against the stolen V.`;
 
     const past2 = run.rows.find((r) => r.id === 'past-2')!;
     renderDiff(
@@ -217,28 +215,23 @@ function wireExhibit6(section: HTMLElement, announce: (msg: string) => void): vo
     );
     renderDiff(
       section.querySelector<HTMLElement>('#compromise-diff-noupdate')!,
-      past2.noUpdate.truth,
-      past2.noUpdate.attempt
+      past2.noUpdate!.truth,
+      past2.noUpdate!.attempt
     );
 
     const summary = summarize(run);
     const headline = section.querySelector<HTMLElement>('#compromise-headline')!;
-    headline.replaceChildren();
-    const strong = document.createElement('strong');
-    strong.textContent = summary.hmacBacktrackingHolds && !summary.noUpdateBacktrackingHolds
-      ? 'Backtracking resistance: measured.'
-      : 'Read the byte counts, not this line.';
-    headline.append(strong, document.createTextNode(' ' + summary.headline));
+    headline.textContent = summary.headline;
     headline.append(
       document.createTextNode(
         summary.bothPredictableForward
           ? ' Both generators handed over the next round exactly, so neither provides prediction resistance on its own.'
-          : ' At least one generator did not hand over the next round, which the construction does not promise — check the third row.'
+          : ' At least one generator did not hand over the next round, which the construction does not promise — check the no-reseed row.'
       ),
       document.createTextNode(
         summary.reseedRestoresBoth
           ? ' After a reseed from fresh entropy, both attackers were locked out.'
-          : ' A reseed did not lock the attacker out, which contradicts SP 800-90A §8.6.8 — check the fourth row.'
+          : ' A reseed did not lock the attacker out, which contradicts SP 800-90A §8.6.8 — check the reseed row.'
       )
     );
 
@@ -247,7 +240,10 @@ function wireExhibit6(section: HTMLElement, announce: (msg: string) => void): vo
     detailPanel.style.display = '';
     announce(
       `State compromise run complete. HMAC_DRBG past recovery: ${past2.hmac.matchedBytes} of ${past2.hmac.totalBytes} bytes. ` +
-        `CTR-no-update past recovery: ${past2.noUpdate.matchedBytes} of ${past2.noUpdate.totalBytes} bytes.`
+        `CTR-no-update past recovery: ${past2.noUpdate!.matchedBytes} of ${past2.noUpdate!.totalBytes} bytes.`
     );
-  });
+  }
+
+  runBtn.addEventListener('click', () => execute(readInputs()));
+  additional.addEventListener('change', () => execute(lastInputs ?? readInputs()));
 }

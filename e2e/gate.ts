@@ -979,14 +979,18 @@ export async function driveAllStates(page: Page, theme: string): Promise<void> {
   // ── Exhibit 6: steal the state ──────────────────────────────────────────
   await expect(page.locator('#compromise-results-panel')).toBeHidden();
   await page.click('#compromise-run');
-  await expect(page.locator('#compromise-rows tr')).toHaveCount(4);
+  await expect(page.locator('#compromise-rows tr')).toHaveCount(5);
   await expect(page.locator('#compromise-detail-panel')).toBeVisible();
   await expect(page.locator('#compromise-headline')).not.toBeEmpty();
   // The two byte-diff regions, one fully recovered and one not — which is the
   // comparison the whole exhibit exists to make.
   await expect(page.locator('#compromise-diff-noupdate .diff-same')).toHaveCount(32);
   await expect(page.locator('#compromise-diff-hmac .diff-diff').first()).toBeVisible();
-  await scanAt('state stolen, four attacks scored, byte diffs rendered');
+  await expect(page.locator('#compromise-cell-confirm-last-block-hmac')).toContainText('32/32 bytes — CONFIRMED');
+  await scanAt('state stolen, five checks scored, byte diffs rendered');
+  await page.getByRole('checkbox', { name: 'Use additional input for HMAC_DRBG' }).check();
+  await expect(page.locator('#compromise-cell-confirm-last-block-hmac')).toContainText('not confirmed');
+  await scanAt('state stolen with additional input');
 
   // Everything on the page is now populated; open whatever is still shut.
   await openAllDisclosures(page, false);

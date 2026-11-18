@@ -112,11 +112,8 @@ test('the broken-generator grid backs its visual claim with measured numbers', a
 });
 
 // ── Exhibit 6 — steal the state ────────────────────────────────────────────
-// Exhibit 2 asserts backtracking resistance in prose. Exhibit 6 measures it,
-// against a positive control that is supposed to fail. These specs pin both
-// sides: if the control ever stopped surrendering its past, the experiment
-// would be blind and the "HMAC_DRBG gave up nothing" verdict would mean
-// nothing — so the control's failure is asserted as hard as the pass.
+// The defective control must reproduce both earlier rounds. HMAC_DRBG's
+// recovery attempts are scored separately from its final-block confirmation.
 
 // 48 bytes, fixed, so every number below is exact rather than probabilistic.
 const PINNED_SEED =
@@ -126,7 +123,7 @@ async function runCompromise(page: Page): Promise<void> {
   await open(page);
   await page.locator('#compromise-entropy').fill(PINNED_SEED);
   await page.locator('#compromise-run').click();
-  await expect(page.locator('#compromise-rows tr')).toHaveCount(4);
+  await expect(page.locator('#compromise-rows tr')).toHaveCount(5);
 }
 
 test('the defective control surrenders its entire past — the experiment can see a failure', async ({ page }) => {
@@ -138,7 +135,7 @@ test('the defective control surrenders its entire past — the experiment can se
   await expect(page.locator('#compromise-diff-noupdate .diff-diff')).toHaveCount(0);
 });
 
-test('HMAC_DRBG gives up no past output under the same theft', async ({ page }) => {
+test('HMAC_DRBG recovery attempts only match at the chance rate', async ({ page }) => {
   await runCompromise(page);
   await expect(page.locator('#compromise-cell-past-1-hmac')).toContainText('failed');
   await expect(page.locator('#compromise-cell-past-2-hmac')).toContainText('failed');
@@ -169,6 +166,20 @@ test('the headline is written from the run, and names the control', async ({ pag
   await expect(headline).toContainText('both attackers were locked out');
   await expect(headline).not.toContainText('inconclusive');
   await expect(headline).not.toContainText('contradicts SP 800-90A');
+});
+
+test('additional input toggles confirmation while keeping the experiment seed', async ({ page }) => {
+  await runCompromise(page);
+  const toggle = page.getByRole('checkbox', { name: 'Use additional input for HMAC_DRBG' });
+  const confirmation = page.locator('#compromise-cell-confirm-last-block-hmac');
+  await expect(confirmation).toContainText('32/32 bytes — CONFIRMED');
+  await expect(page.locator('#compromise-cell-confirm-last-block-noupdate')).toHaveText('Not applicable');
+  await toggle.check();
+  await expect(confirmation).toContainText('not confirmed');
+  await expect(page.locator('#compromise-headline')).toContainText('the check does not confirm the final block');
+  await expect(page.locator('#compromise-seed')).toHaveText(PINNED_SEED);
+  await toggle.uncheck();
+  await expect(confirmation).toContainText('32/32 bytes — CONFIRMED');
 });
 
 test('the run is deterministic in the seed the learner supplies', async ({ page }) => {

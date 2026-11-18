@@ -129,11 +129,8 @@ export function buildExhibit2(announce: (msg: string) => void): HTMLElement {
           </div>
         </div>
         <p class="uf-caption">
-          <strong>The old state is destroyed by a one-way function; this is why the past can't be recovered.</strong>
-          Even with the new (K, V) in hand, inverting HMAC to recover the old V is
-          infeasible — so an attacker who steals the state now cannot reconstruct
-          earlier output. That is exactly the <strong>backtracking resistance</strong>
-          claimed in Exhibit 1, made mechanical.
+          <strong>The one-way state update is designed to prevent earlier output from being recovered.</strong>
+          Without additional input, a stolen post-request HMAC_DRBG state can confirm a guess for the request’s final full output block (see Exhibit 6).
         </p>
         <details class="gloss">
           <summary><span class="gloss-term">show full 64-hex-char K and V</span></summary>

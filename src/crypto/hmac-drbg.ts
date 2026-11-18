@@ -71,7 +71,8 @@ export async function hmacDrbgInstantiate(
  */
 export async function hmacDrbgGenerate(
   state: HmacDrbgState,
-  requestedBytes: number
+  requestedBytes: number,
+  additionalInput?: Uint8Array
 ): Promise<{
   output: Uint8Array;
   state: HmacDrbgState;
@@ -84,6 +85,9 @@ export async function hmacDrbgGenerate(
   const prevV = toHex(state.V);
 
   let { K, V } = state;
+  if (additionalInput?.length) {
+    ({ K, V } = await hmacDrbgUpdate(K, V, additionalInput));
+  }
   const temp: Uint8Array[] = [];
   let collected = 0;
 
@@ -97,8 +101,8 @@ export async function hmacDrbgGenerate(
   // Concatenate and trim to requested length
   const output = concatBytes(...temp).slice(0, requestedBytes);
 
-  // Update K and V (no additional input)
-  const updated = await hmacDrbgUpdate(K, V);
+  // Update K and V, including when additional input is empty
+  const updated = await hmacDrbgUpdate(K, V, additionalInput);
 
   const newState: HmacDrbgState = {
     K: updated.K,

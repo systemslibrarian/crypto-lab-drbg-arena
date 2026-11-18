@@ -1,33 +1,7 @@
 /**
- * Exhibit 6 — the state-compromise experiment.
- *
- * Exhibits 1 and 2 make a strong claim in prose: "the old state is destroyed by
- * a one-way function; this is why the past can't be recovered". This module
- * turns that sentence into a measurement, and — crucially — measures it against
- * a positive control, so the result is evidence rather than a restatement.
- *
- * The experiment:
- *   1. Seed two generators from the SAME entropy. One is the approved
- *      HMAC_DRBG (SP 800-90A §10.1.2). The other is CTR-no-update: the approved
- *      CTR_DRBG with its post-Generate Update step deleted, and nothing else.
- *   2. Both emit three rounds of output. The learner records all three.
- *   3. The attacker steals the internal state AFTER round 2.
- *   4. From that stolen state alone, the attacker tries four things, and every
- *      attempt is compared byte-for-byte against what really happened.
- *
- * Neither verdict is written from which generator it is. Both come from the
- * same match counter over the same four attacks, so the defective generator is
- * what proves the experiment can detect a failure at all: if backtracking
- * resistance were being asserted rather than measured, CTR-no-update would come
- * out looking safe too.
- *
- * On the backward attacks: CTR-no-update exposes an exact `rewind`, so its
- * recovery is a real inversion. HMAC_DRBG exposes no such operation — its state
- * transition is K = HMAC(K, V‖0x00), and reversing it is the SHA-256 preimage
- * problem. So the attacker's move against HMAC_DRBG is the only one the stolen
- * state permits: emit the stream that state generates, and see whether it
- * happens to agree with the past. It agrees at the chance rate, which is what
- * the numbers below report and what the verdict is derived from.
+ * Exhibit 6 measures exact recovery, prediction, and confirmation after state theft.
+ * CTR-no-update is the positive control for recovery. The HMAC_DRBG confirmation
+ * row tests the post-Generate relation described by Woodage and Shumow, §7.1.
  */
 
 import {
@@ -44,14 +18,14 @@ import {
   rewind,
   type NoUpdateState,
 } from './ctr-no-update';
-import { fromHex } from './utils';
+import { fromHex, hmacSha256 } from './utils';
 
-export type AttackVerdict = 'recovered' | 'failed' | 'partial';
+export type AttackVerdict = 'recovered' | 'failed' | 'partial' | 'confirmed';
 
 export interface AttackResult {
-  /** What the generator really emitted (or will emit). */
+  /** The reference bytes: generator output or the stolen V for confirmation. */
   truth: Uint8Array;
-  /** What the attacker produced from the stolen state alone. */
+  /** The attacker’s computed bytes, using a candidate block for confirmation. */
   attempt: Uint8Array;
   matchedBytes: number;
   totalBytes: number;
@@ -64,12 +38,13 @@ export interface AttackRow {
   /** Direction of the attack, for the page's framing. */
   direction: 'backward' | 'forward';
   hmac: AttackResult;
-  noUpdate: AttackResult;
+  noUpdate: AttackResult | null;
 }
 
 export interface CompromiseRun {
   entropyHex: string;
   roundBytes: number;
+  usesAdditionalInput: boolean;
   /** Truncated hex of each generator's stolen state, for display. */
   stolenHmac: string;
   stolenNoUpdate: string;
@@ -125,6 +100,8 @@ export interface CompromiseInputs {
   /** Fresh entropy used by the reseed row. */
   reseedEntropy: Uint8Array;
   roundBytes?: number;
+  /** Public additional input used for each HMAC_DRBG Generate request. */
+  additionalInput?: Uint8Array;
 }
 
 /**
@@ -133,15 +110,15 @@ export interface CompromiseInputs {
  */
 export async function runCompromise(inputs: CompromiseInputs): Promise<CompromiseRun> {
   const roundBytes = inputs.roundBytes ?? 32;
-  const { entropy, reseedEntropy } = inputs;
+  const { entropy, reseedEntropy, additionalInput } = inputs;
 
   // ── the victim generators, seeded identically ────────────────────────────
   const h0: HmacDrbgState = await hmacDrbgInstantiate(entropy);
   const n0: NoUpdateState = await noUpdateInstantiate(entropy);
 
-  const h1 = await hmacDrbgGenerate(h0, roundBytes); // round 1
+  const h1 = await hmacDrbgGenerate(h0, roundBytes, additionalInput); // round 1
   const n1 = await noUpdateGenerate(n0, roundBytes);
-  const h2 = await hmacDrbgGenerate(h1.state, roundBytes); // round 2
+  const h2 = await hmacDrbgGenerate(h1.state, roundBytes, additionalInput); // round 2
   const n2 = await noUpdateGenerate(n1.state, roundBytes);
 
   // ── the theft: the state as it stands immediately after round 2 ──────────
@@ -163,18 +140,18 @@ export async function runCompromise(inputs: CompromiseInputs): Promise<Compromis
   };
 
   // ── what really happens next ─────────────────────────────────────────────
-  const h3 = await hmacDrbgGenerate(stolenH, roundBytes); // round 3, no reseed
+  const h3 = await hmacDrbgGenerate(stolenH, roundBytes, additionalInput); // round 3, no reseed
   const n3 = await noUpdateGenerate(stolenN, roundBytes);
 
   // ── and what happens if the victim reseeds first ─────────────────────────
   const hReseeded = await hmacDrbgReseed(stolenH, reseedEntropy);
   const nReseeded = await noUpdateReseed(stolenN, reseedEntropy);
-  const h3r = await hmacDrbgGenerate(hReseeded, roundBytes);
+  const h3r = await hmacDrbgGenerate(hReseeded, roundBytes, additionalInput);
   const n3r = await noUpdateGenerate(nReseeded, roundBytes);
 
   // ── the attacker, holding only the stolen state ──────────────────────────
   // Forward: run the stolen state onwards. Available to both.
-  const hForward = (await hmacDrbgGenerate(attackerH, roundBytes)).output;
+  const hForward = (await hmacDrbgGenerate(attackerH, roundBytes, additionalInput)).output;
   const nForward = (await noUpdateGenerate(attackerN, roundBytes)).output;
 
   // Backward, CTR-no-update: an exact inverse exists, so use it.
@@ -182,9 +159,7 @@ export async function runCompromise(inputs: CompromiseInputs): Promise<Compromis
   const nBack1 = (await noUpdateGenerate(rewind(attackerN, blocks), roundBytes)).output;
   const nBack2 = (await noUpdateGenerate(rewind(attackerN, blocks * 2), roundBytes)).output;
 
-  // Backward, HMAC_DRBG: no inverse exists to call. The stolen state generates
-  // exactly one stream, so that stream is the attacker's entire repertoire; it
-  // is scored against the past on the same footing as the exact recovery above.
+  // Try replaying the stolen state's stream as a recovery attempt.
   const hBack = hForward;
 
   const rows: AttackRow[] = [
@@ -218,9 +193,30 @@ export async function runCompromise(inputs: CompromiseInputs): Promise<Compromis
     },
   ];
 
+  // Truncated requests do not expose the final full internal block as a candidate.
+  if (roundBytes >= 32 && roundBytes % 32 === 0) {
+    const attempt = await hmacSha256(attackerH.K, h2.output.slice(-32));
+    const truth = attackerH.V;
+    const matchedBytes = countMatches(truth, attempt);
+    rows.splice(2, 0, {
+      id: 'confirm-last-block',
+      label: 'Confirm the last block of round 2 from the stolen state',
+      direction: 'backward',
+      hmac: {
+        truth,
+        attempt,
+        matchedBytes,
+        totalBytes: truth.length,
+        verdict: matchedBytes === truth.length ? 'confirmed' : 'failed',
+      },
+      noUpdate: null,
+    });
+  }
+
   return {
     entropyHex: hex(entropy),
     roundBytes,
+    usesAdditionalInput: Boolean(additionalInput?.length),
     stolenHmac: `K=${hex(stolenH.K).slice(0, 16)}… V=${hex(stolenH.V).slice(0, 16)}…`,
     stolenNoUpdate: `Key=${hex(stolenN.Key).slice(0, 16)}… V=${hex(stolenN.V).slice(0, 16)}…`,
     rows,
@@ -230,11 +226,10 @@ export async function runCompromise(inputs: CompromiseInputs): Promise<Compromis
 }
 
 /**
- * The page-level conclusion, written from the row verdicts only. If the
- * measurements ever stopped supporting the sentence Exhibit 2 prints, this
- * would say so rather than printing the sentence anyway.
+ * The page-level conclusion follows the recovery and confirmation verdicts.
  */
 export interface CompromiseSummary {
+  /** The two recovery attempts failed, independently of the confirmation check. */
   hmacBacktrackingHolds: boolean;
   noUpdateBacktrackingHolds: boolean;
   bothPredictableForward: boolean;
@@ -243,27 +238,39 @@ export interface CompromiseSummary {
 }
 
 export function summarize(run: CompromiseRun): CompromiseSummary {
-  const back = run.rows.filter((r) => r.direction === 'backward');
+  const back = run.rows.filter((r) => r.id === 'past-1' || r.id === 'past-2');
+  const confirm = run.rows.find((r) => r.id === 'confirm-last-block');
   const forward = run.rows.find((r) => r.id === 'future-3')!;
   const reseeded = run.rows.find((r) => r.id === 'future-3-reseeded')!;
 
   const hmacBacktrackingHolds = back.every((r) => r.hmac.verdict === 'failed');
-  const noUpdateBacktrackingHolds = back.every((r) => r.noUpdate.verdict === 'failed');
+  const noUpdateBacktrackingHolds = back.every((r) => r.noUpdate?.verdict === 'failed');
   const bothPredictableForward =
-    forward.hmac.verdict === 'recovered' && forward.noUpdate.verdict === 'recovered';
+    forward.hmac.verdict === 'recovered' && forward.noUpdate?.verdict === 'recovered';
   const reseedRestoresBoth =
-    reseeded.hmac.verdict === 'failed' && reseeded.noUpdate.verdict === 'failed';
+    reseeded.hmac.verdict === 'failed' && reseeded.noUpdate?.verdict === 'failed';
 
   let headline: string;
-  if (hmacBacktrackingHolds && !noUpdateBacktrackingHolds) {
+  if (!hmacBacktrackingHolds) {
     headline =
-      'Backtracking resistance measured, not assumed: the same theft rewinds CTR-no-update completely and gets nothing from HMAC_DRBG.';
-  } else if (hmacBacktrackingHolds && noUpdateBacktrackingHolds) {
+      'The HMAC_DRBG recovery attempt matched more bytes than expected. That contradicts SP 800-90A and this page; trust the byte counts above.';
+  } else if (!back.every((r) => r.noUpdate?.verdict === 'recovered')) {
     headline =
-      'Neither generator gave up its past — but the defective control was supposed to, so this run proves nothing about HMAC_DRBG. Treat it as an inconclusive experiment, not a pass.';
+      'The defective control was supposed to give up its past. Treat this run as an inconclusive experiment.';
+  } else if (!confirm) {
+    headline = 'Confirmation requires a full final output block.';
+  } else if (!run.usesAdditionalInput && confirm.hmac.verdict !== 'confirmed') {
+    headline =
+      'Confirmation failed without additional input. This should never happen; trust the byte counts above.';
+  } else if (run.usesAdditionalInput && confirm.hmac.verdict !== 'failed') {
+    headline =
+      'Confirmation unexpectedly succeeded with additional input; trust the byte counts above.';
   } else {
-    headline =
-      'HMAC_DRBG gave up past output in this run. That contradicts SP 800-90A and this page; trust the byte counts above, not the prose.';
+    const recovery = 'Recovery measured, not assumed: the stolen state rewinds CTR-no-update completely, while the HMAC_DRBG recovery attempts fail.';
+    const confirmation = run.usesAdditionalInput
+      ? ' With additional input, the check does not confirm the final block.'
+      : ' Without additional input, the stolen state confirms the last block of the most recent request (Woodage & Shumow, §7.1).';
+    headline = recovery + confirmation;
   }
   return {
     hmacBacktrackingHolds,

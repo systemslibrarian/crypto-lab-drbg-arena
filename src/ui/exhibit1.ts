@@ -68,11 +68,10 @@ export function buildExhibit1(): HTMLElement {
         </p>
         <ol style="list-style:decimal;padding-left:1.5rem;display:flex;flex-direction:column;gap:0.75rem" role="list">
           <li style="font-size:0.85rem;line-height:1.7;color:var(--text-primary)">
-            <strong>Backtracking resistance</strong> <span style="color:var(--text-muted)">(protects the past)</span>
+            <strong>Backtracking resistance</strong> <span style="color:var(--text-muted)">(concerns earlier output)</span>
             <span style="color:var(--text-secondary)"> — if the internal state is compromised at some
-            moment, all outputs produced <em>before</em> it stay secure. The generator cannot be run
-            backwards. All three constructions provide this by default, because each step replaces the
-            state with a one-way function of itself.</span>
+            moment, the generator’s state update is designed to prevent earlier output from being recovered.
+            Without additional input, a stolen post-request HMAC_DRBG state can confirm a guess for the request’s final full output block (see Exhibit 6).</span>
           </li>
           <li style="font-size:0.85rem;line-height:1.7;color:var(--text-primary)">
             <strong>Prediction resistance</strong> <span style="color:var(--text-muted)">(protects the future)</span>
