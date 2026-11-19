@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 import { runAllTests } from '../src/stats/nist-tests';
 
@@ -217,6 +218,27 @@ test('no exhibit presents CTR_DRBG as the mandatory DRBG', async ({ page }) => {
   await expect(
     page.locator('a[href="https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-90Ar1.pdf"]').first(),
   ).toHaveCount(1);
+});
+
+test('the README does not present CTR_DRBG as the DRBG that FIPS requires either', async ({ page }) => {
+  // The page was corrected first; the README's "When to Use It" went on saying
+  // "CTR_DRBG — FIPS 140-2/3 required environments, or when AES-NI is
+  // available." FIPS 140 requires an SP 800-90A approved DRBG, and SP 800-90A
+  // approves three. The README must say what the page says.
+  const readme = readFileSync('README.md', 'utf8').replace(/\s+/g, ' ');
+  expect(readme).not.toContain('FIPS 140-2/3 required environments');
+  expect(readme).not.toMatch(/CTR_DRBG[^.]{0,40}FIPS[- ](140-2\/3 )?required/i);
+  expect(readme).not.toContain('CTR_DRBG common in FIPS-constrained');
+  expect(readme).toContain('where AES is the approved primitive available');
+  expect(readme).toContain('none is required over the others');
+  expect(readme).toContain('approves all three and mandates none');
+
+  // Same statement, both places: the page's own sentence names the same three.
+  await open(page);
+  const body = (await page.locator('body').innerText()).replace(/\s+/g, ' ');
+  for (const text of [body, readme]) {
+    expect(text).toMatch(/Hash_DRBG, HMAC_DRBG (and|or) CTR_DRBG/);
+  }
 });
 
 test('the three-way table does not call Hash_DRBG the slow one', async ({ page }) => {

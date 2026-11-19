@@ -11,7 +11,7 @@ DRBG Arena demonstrates the three NIST SP 800-90A approved Deterministic Random 
 ## When to Use It
 
 - HMAC_DRBG — general-purpose secure random generation in most applications.
-- CTR_DRBG — FIPS 140-2/3 required environments, or when AES-NI is available.
+- CTR_DRBG — where AES is the approved primitive available, for example on hardware with AES-NI. All three SP 800-90A DRBGs (Hash_DRBG, HMAC_DRBG, CTR_DRBG) are FIPS-approved; none is required over the others.
 - Hash_DRBG — constrained environments needing the simplest correct implementation.
 - Never use `Math.random()` for cryptographic key or nonce generation.
 - Never use Dual_EC_DRBG under any circumstances (see Corrupted Oracle).
@@ -44,7 +44,7 @@ Six exhibits plus a live conformance check:
 
 - **TLS and crypto libraries.** OpenSSL and many cryptographic libraries ship SP 800-90A DRBGs (commonly CTR_DRBG with AES) as their default secure random source.
 - **Operating system RNGs.** OS entropy facilities feed CSPRNGs that follow the same seed-and-expand design these DRBGs formalize.
-- **FIPS 140-2/3 modules.** Validated cryptographic modules are required to use SP 800-90A approved DRBGs, with CTR_DRBG common in FIPS-constrained environments.
+- **FIPS 140-2/3 modules.** Validated cryptographic modules are required to use an SP 800-90A approved DRBG — Hash_DRBG, HMAC_DRBG or CTR_DRBG. The standard approves all three and mandates none: "[t]he selection of a DRBG mechanism depends on several factors, including the security strength to be supported and what cryptographic primitives are available" (SP 800-90A Rev. 1 §10).
 - **HSMs and secure elements.** Hardware security modules combine a hardware entropy source with an approved DRBG to produce keys and nonces.
 - **Protocol nonce/IV generation.** Secure generation of nonces, IVs, and ephemeral keys across TLS, IPsec, and similar protocols depends on a correctly seeded DRBG.
 
